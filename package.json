@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A dark, atmospheric storytelling platform.",
   "scripts": {
-    "build": "mkdir -p dist && cp index.html manifest.json icon.svg _redirects CNAME dist/"
+    "build": "mkdir -p dist && cp index.html manifest.json icon.svg _redirects dist/"
   },
   "dependencies": {}
 }

@@ -231,13 +231,23 @@
         Image as ImageIcon, Clock, Calendar, User, Volume2, Square, Mic2, 
         PenTool, BookOpen, Ghost, Menu, X, Plus, Users, Lock, Unlock, 
         Trash2, Settings, Check, AlertCircle, Type, Palette, Heart, 
-        CreditCard, DollarSign, Wallet, LayoutDashboard, Cat, ExternalLink, Copy
+        CreditCard, DollarSign, Wallet, LayoutDashboard, Cat, Mail
       } from 'lucide-react';
 
       // --- CONFIGURATION ---
+      // ENTER YOUR API KEY HERE
       const API_KEY = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : '';
 
+      // *** IMPORTANT: PASTE YOUR GOOGLE SCRIPT WEB APP URL HERE ***
+      const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-6wnErQdXkovY2uavK9WcxEHH4nq8LQCsLgYY5WyR6Kaj-BPV_-UZ8_gZ0LBOmiLLKQ/exec"; 
+
       // --- TYPES ---
+      
+      /*
+      type AuthorType = 'OWNER' | 'GUEST';
+      interface Story { id: string; title: string; ... }
+      */
+      
       const GeminiAction = {
         CONTINUE: 'CONTINUE',
         IMPROVE: 'IMPROVE',
@@ -245,14 +255,18 @@
       };
 
       // --- SERVICES: GEMINI ---
+
       const ai = new GoogleGenAI({ apiKey: API_KEY });
       const MODEL_NAME = 'gemini-2.5-flash';
 
       const generateStoryContent = async (currentContent, action, instruction) => {
-        if (!API_KEY) return "API Key missing. Cannot generate content.";
+        if (!API_KEY) {
+          console.error("API Key not found");
+          return "API Key missing. Cannot generate content.";
+        }
 
         let prompt = "";
-        let systemInstruction = "You are a master storyteller specializing in dark, atmospheric, and weird fiction.";
+        let systemInstruction = "You are a master storyteller specializing in dark, atmospheric, and weird fiction. You write with elegant prose.";
 
         switch (action) {
           case GeminiAction.CONTINUE:
@@ -263,10 +277,13 @@
             break;
           case GeminiAction.IDEAS:
             prompt = `Give me 3 unique, dark, and twisty plot ideas based on this premise:\n${currentContent}`;
+            systemInstruction = "You are a creative writing coach specializing in dark fiction.";
             break;
         }
 
-        if (instruction) prompt += `\n\nAdditional Instruction: ${instruction}`;
+        if (instruction) {
+          prompt += `\n\nAdditional Instruction: ${instruction}`;
+        }
 
         try {
           const response = await ai.models.generateContent({
@@ -279,6 +296,7 @@
               maxOutputTokens: 1000,
             }
           });
+          
           return response.text || "";
         } catch (error) {
           console.error("Gemini API Error:", error);
@@ -301,16 +319,21 @@
 
       const generateStorySpeech = async (text, voiceName = 'Fenrir') => {
         if (!API_KEY) throw new Error("API Key missing");
+
         const safeText = text.length > 5000 ? text.substring(0, 5000) + "..." : text;
 
         try {
           const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-preview-tts',
-            contents: { parts: [{ text: safeText }] },
+            contents: {
+              parts: [{ text: safeText }]
+            },
             config: {
               responseModalities: [Modality.AUDIO],
               speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName } }
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName }
+                }
               }
             }
           });
@@ -331,6 +354,7 @@
       };
 
       // --- SERVICES: STORAGE ---
+
       const STORAGE_KEY = 'nocturne_stories';
       const PASSCODE_KEY = 'nocturne_passcode';
       const SUBTITLE_KEY = 'nocturne_subtitle';
@@ -362,15 +386,19 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
       };
 
-      const getPasscode = () => localStorage.getItem(PASSCODE_KEY) || 'void';
+      const getPasscode = () => {
+        return localStorage.getItem(PASSCODE_KEY) || 'void'; 
+      };
 
       const verifyPasscode = async (input) => {
         const stored = getPasscode();
         if (stored === 'void') return input === 'void';
+        
         const msgBuffer = new TextEncoder().encode(input);
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
         return hashHex === stored;
       };
 
@@ -382,15 +410,30 @@
         localStorage.setItem(PASSCODE_KEY, hashHex);
       };
 
-      const getHeroSubtitle = () => localStorage.getItem(SUBTITLE_KEY) || "The Official Chronicles. Tales from the curator of the dark.";
-      const saveHeroSubtitle = (text) => localStorage.setItem(SUBTITLE_KEY, text);
-      const getBackgroundImage = () => localStorage.getItem(BG_IMAGE_KEY) || 'https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=2670&auto=format&fit=crop';
-      const saveBackgroundImage = (url) => localStorage.setItem(BG_IMAGE_KEY, url);
+      const getHeroSubtitle = () => {
+        return localStorage.getItem(SUBTITLE_KEY) || "The Official Chronicles. Tales from the curator of the dark.";
+      };
+
+      const saveHeroSubtitle = (text) => {
+        localStorage.setItem(SUBTITLE_KEY, text);
+      };
+
+      const getBackgroundImage = () => {
+        return localStorage.getItem(BG_IMAGE_KEY) || 'https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=2670&auto=format&fit=crop';
+      };
+
+      const saveBackgroundImage = (url) => {
+        localStorage.setItem(BG_IMAGE_KEY, url);
+      };
+
       const getThemeSettings = () => {
         const data = localStorage.getItem(THEME_KEY);
         return data ? JSON.parse(data) : { accentColor: '#8a0000', textColor: '#e0e0e0' };
       };
-      const saveThemeSettings = (settings) => localStorage.setItem(THEME_KEY, JSON.stringify(settings));
+
+      const saveThemeSettings = (settings) => {
+        localStorage.setItem(THEME_KEY, JSON.stringify(settings));
+      };
 
       const getFounderProfile = () => {
         const data = localStorage.getItem(FOUNDER_KEY);
@@ -401,34 +444,60 @@
           imageUrl: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?q=80&w=2000&auto=format&fit=crop"
         };
       };
-      const saveFounderProfile = (profile) => localStorage.setItem(FOUNDER_KEY, JSON.stringify(profile));
 
-      const getBalance = () => parseFloat(localStorage.getItem(BALANCE_KEY) || '0.00');
+      const saveFounderProfile = (profile) => {
+        localStorage.setItem(FOUNDER_KEY, JSON.stringify(profile));
+      };
+
+      const getBalance = () => {
+        return parseFloat(localStorage.getItem(BALANCE_KEY) || '0.00');
+      };
+
       const addToBalance = (amount) => {
         const current = getBalance();
         localStorage.setItem(BALANCE_KEY, (current + amount).toFixed(2));
       };
-      const withdrawBalance = () => localStorage.setItem(BALANCE_KEY, '0.00');
-      
+
+      const withdrawBalance = () => {
+        const amount = getBalance();
+        localStorage.setItem(BALANCE_KEY, '0.00');
+      };
+
       const getLinkedCard = () => {
         const encoded = localStorage.getItem(LINKED_CARD_KEY);
         if (!encoded) return '';
-        try { return atob(encoded); } catch (e) { return ''; }
+        try {
+          return atob(encoded); 
+        } catch (e) {
+          return '';
+        }
       };
-      const saveLinkedCard = (last4) => localStorage.setItem(LINKED_CARD_KEY, btoa(last4));
+
+      const saveLinkedCard = (last4) => {
+        localStorage.setItem(LINKED_CARD_KEY, btoa(last4));
+      };
 
       const getLogs = () => {
         const data = localStorage.getItem(LOGS_KEY);
         return data ? JSON.parse(data) : [];
       };
+
       const logActivity = (action, details) => {
         const logs = getLogs();
-        const entry = { id: crypto.randomUUID(), timestamp: Date.now(), action, details };
+        const entry = {
+          id: crypto.randomUUID(),
+          timestamp: Date.now(),
+          action,
+          details
+        };
         logs.unshift(entry);
-        if (logs.length > 100) logs.pop();
+        if (logs.length > 100) logs.pop(); // Keep last 100
         localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
       };
-      const clearLogs = () => localStorage.removeItem(LOGS_KEY);
+      
+      const clearLogs = () => {
+        localStorage.removeItem(LOGS_KEY);
+      };
 
       const seedInitialData = () => {
         if (getStories().length === 0) {
@@ -437,12 +506,25 @@
               id: '1',
               title: 'The Clockwork Heart',
               excerpt: 'It beat not with blood, but with the steady rhythm of a dying star trapped in brass.',
-              content: `The artisan wiped grease from his forehead, leaving a smudge that looked uncomfortably like a bruise. "It is finished," he whispered, though the workshop was empty save for the echoes of ticking clocks.\n\nOn the table lay the heart. It was a marvel of gears and springs, encased in a cage of tarnished gold. It did not thump; it clicked. A precise, mechanical staccato that seemed to count down the seconds of an unseen lifespan.`,
+              content: `The artisan wiped grease from his forehead, leaving a smudge that looked uncomfortably like a bruise. "It is finished," he whispered, though the workshop was empty save for the echoes of ticking clocks.\n\nOn the table lay the heart. It was a marvel of gears and springs, encased in a cage of tarnished gold. It did not thump; it clicked. A precise, mechanical staccato that seemed to count down the seconds of an unseen lifespan.\n\nHe had traded his own heart for the knowledge to build it. A deal made at a crossroads where the shadows stretched longer than the light allowed. Now, staring at the creation, he wondered if the recipient—a porcelain doll that sat lifeless in the corner—would thank him, or if she would simply wind him up until he broke.`,
               createdAt: Date.now(),
               updatedAt: Date.now(),
               tags: ['Steampunk', 'Horror', 'Short'],
               isPublished: true,
               coverImage: 'https://picsum.photos/800/600?grayscale',
+              authorType: 'OWNER',
+              authorName: 'The Curator'
+            },
+            {
+              id: '2',
+              title: 'Silence in the Hallway',
+              excerpt: 'The door was closed, but I could hear breathing from the other side.',
+              content: `I live alone. That is the first fact. The second fact is that my apartment is on the top floor, and the only access is a fire escape that rusted shut in '98.\n\nSo when I heard the breathing, wet and heavy, pressing against the wood of my bedroom door, I didn't reach for a weapon. I reached for the light switch. But the darkness was absolute, a physical weight that pressed against my eyes.\n\n"Let me in," the voice rasped. It sounded like my own voice, recorded and played back on a decaying tape loop. "We have so much to discuss regarding tomorrow."\n\nI don't know what happens tomorrow. I'm afraid to check the calendar.`,
+              createdAt: Date.now() - 100000,
+              updatedAt: Date.now(),
+              tags: ['Thriller', 'Psychological'],
+              isPublished: true,
+              coverImage: 'https://picsum.photos/800/601?grayscale',
               authorType: 'OWNER',
               authorName: 'The Curator'
             }
@@ -466,11 +548,13 @@
 
             <div className="relative h-48 overflow-hidden">
                <div className="absolute inset-0 bg-void-900/40 z-10 group-hover:bg-void-900/20 transition-all"></div>
+               
                {!story.isPublished && (
                  <div className="absolute top-2 left-2 z-30 bg-amber-700/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-sm uppercase tracking-widest shadow-lg border border-amber-600/50">
                    {story.authorType === 'OWNER' ? 'Draft' : 'Pending'}
                  </div>
                )}
+
                <img 
                 src={story.coverImage || `https://picsum.photos/seed/${story.id}/800/400?grayscale`} 
                 alt={story.title}
@@ -486,13 +570,19 @@
                   </span>
                 ))}
               </div>
+              
               <h3 className="text-xl font-serif font-bold text-zinc-100 mb-3 group-hover:text-white transition-colors">
                 {story.title}
               </h3>
+              
               <p className="text-zinc-400 text-sm leading-relaxed mb-4 line-clamp-3 font-serif flex-1">
                 {story.excerpt}
               </p>
-              <div className="text-xs text-zinc-600 uppercase tracking-widest font-semibold transition-colors mt-auto" style={{ color: 'var(--text-color)' }}>
+
+              <div 
+                className="text-xs text-zinc-600 uppercase tracking-widest font-semibold transition-colors mt-auto"
+                style={{ color: 'var(--text-color)' }}
+              >
                 <span className="group-hover:text-[var(--accent-color)] transition-colors">Read Story &rarr;</span>
               </div>
             </div>
@@ -511,8 +601,12 @@
 
         useEffect(() => {
           return () => {
-            if (sourceRef.current) sourceRef.current.stop();
-            if (audioCtxRef.current) audioCtxRef.current.close();
+            if (sourceRef.current) {
+              sourceRef.current.stop();
+            }
+            if (audioCtxRef.current) {
+              audioCtxRef.current.close();
+            }
           };
         }, []);
 
@@ -529,21 +623,25 @@
           setIsLoadingSpeech(true);
           try {
             const pcmData = await generateStorySpeech(story.content, selectedVoice);
+            
             if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
               audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
             }
             const ctx = audioCtxRef.current;
+            
             const input = new Int16Array(pcmData.buffer);
             const audioBuffer = ctx.createBuffer(1, input.length, 24000);
             const channelData = audioBuffer.getChannelData(0);
             for (let i = 0; i < input.length; i++) {
               channelData[i] = input[i] / 32768.0;
             }
+
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(ctx.destination);
             source.onended = () => setIsSpeaking(false);
             source.start();
+            
             sourceRef.current = source;
             setIsSpeaking(true);
           } catch (e) {
@@ -554,54 +652,103 @@
           }
         };
 
-        const date = new Date(story.createdAt).toLocaleDateString();
-        const readTime = Math.ceil(story.content.split(/\s+/).length / 200);
+        const date = new Date(story.createdAt).toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        });
+
+        const words = story.content.split(/\s+/).length;
+        const readTime = Math.ceil(words / 200);
 
         return (
           <div className="animate-fade-in max-w-3xl mx-auto p-6 md:p-12 pb-32">
-            <button onClick={onBack} className="mb-8 text-zinc-500 hover:text-white transition-colors flex items-center gap-2 group">
+            <button 
+              onClick={onBack} 
+              className="mb-8 text-zinc-500 hover:text-white transition-colors flex items-center gap-2 group"
+            >
               <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform"/> Return
             </button>
+
             <header className="mb-12 border-b border-zinc-900 pb-8">
               <div className="flex flex-wrap gap-2 mb-4">
                 {story.tags.map(tag => (
-                  <span key={tag} className="text-xs font-bold tracking-widest uppercase border border-zinc-800 px-2 py-1 rounded-sm" style={{ color: 'var(--accent-color)' }}>{tag}</span>
+                  <span 
+                    key={tag} 
+                    className="text-xs font-bold tracking-widest uppercase border border-zinc-800 px-2 py-1 rounded-sm"
+                    style={{ color: 'var(--accent-color)' }}
+                  >
+                    {tag}
+                  </span>
                 ))}
               </div>
-              <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 leading-tight">{story.title}</h1>
+              <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-6 leading-tight">
+                {story.title}
+              </h1>
               <div className="flex flex-wrap items-center gap-4 md:gap-6 text-sm text-zinc-500 font-sans">
                 <span className="flex items-center gap-2"><Calendar size={14}/> {date}</span>
                 <span className="flex items-center gap-2"><Clock size={14}/> {readTime} min read</span>
-                {story.authorName && <span className="flex items-center gap-2 text-zinc-400"><User size={14}/> By {story.authorName}</span>}
+                {story.authorName && (
+                   <span className="flex items-center gap-2 text-zinc-400"><User size={14}/> By {story.authorName}</span>
+                )}
+                
                 <div className="flex-1"></div>
+
                 <div className="flex items-center gap-2">
                   {!isSpeaking && !isLoadingSpeech && (
                     <div className="relative group">
                       <Mic2 size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"/>
-                      <select value={selectedVoice} onChange={(e) => setSelectedVoice(e.target.value)} className="bg-zinc-900/50 border border-zinc-800 rounded-full pl-8 pr-3 py-1.5 text-xs text-zinc-300 outline-none focus:border-[var(--accent-color)] appearance-none cursor-pointer hover:bg-zinc-800 transition-colors uppercase">
+                      <select 
+                        value={selectedVoice}
+                        onChange={(e) => setSelectedVoice(e.target.value)}
+                        className="bg-zinc-900/50 border border-zinc-800 rounded-full pl-8 pr-3 py-1.5 text-xs text-zinc-300 outline-none focus:border-[var(--accent-color)] appearance-none cursor-pointer hover:bg-zinc-800 transition-colors uppercase tracking-wide"
+                      >
                         {VOICES.map(v => <option key={v} value={v}>{v}</option>)}
                       </select>
                     </div>
                   )}
-                  <button onClick={handleSpeak} disabled={isLoadingSpeech} className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:text-white transition-all text-xs uppercase disabled:opacity-50">
-                    {isLoadingSpeech ? <Loader2 size={12} className="animate-spin" /> : isSpeaking ? <Square size={12} className="fill-current" /> : <Volume2 size={12} />}
+
+                  <button
+                    onClick={handleSpeak}
+                    disabled={isLoadingSpeech}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:text-white transition-all text-xs uppercase tracking-wide disabled:opacity-50"
+                  >
+                    {isLoadingSpeech ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : isSpeaking ? (
+                      <Square size={12} className="fill-current" />
+                    ) : (
+                      <Volume2 size={12} />
+                    )}
                     {isLoadingSpeech ? "Conjuring..." : isSpeaking ? "Stop Voice" : "Listen"}
                   </button>
                 </div>
+
                 {canEdit && (
-                  <button onClick={onEdit} className="font-bold tracking-wider uppercase text-xs border px-3 py-1 rounded-full transition-all hover:text-white" style={{ color: 'var(--accent-color)', borderColor: 'rgba(255,255,255,0.1)' }}>Edit Entry</button>
+                  <button 
+                    onClick={onEdit} 
+                    className="font-bold tracking-wider uppercase text-xs border px-3 py-1 rounded-full transition-all hover:text-white"
+                    style={{ color: 'var(--accent-color)', borderColor: 'rgba(255,255,255,0.1)' }}
+                  >
+                    Edit Entry
+                  </button>
                 )}
               </div>
             </header>
+
             {story.coverImage && (
               <div className="mb-12 overflow-hidden rounded-sm relative h-64 md:h-96 w-full group">
                  <div className="absolute inset-0 bg-gradient-to-t from-void-950 to-transparent z-10 opacity-80 group-hover:opacity-60 transition-opacity duration-700"></div>
                  <img src={story.coverImage} alt="Cover" className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-1000 ease-in-out" />
               </div>
             )}
+
             <article className="prose prose-invert prose-lg max-w-none font-serif leading-loose" style={{ color: 'var(--text-color)' }}>
-              {story.content.split('\n').map((paragraph, idx) => <p key={idx} className="mb-6">{paragraph}</p>)}
+              {story.content.split('\n').map((paragraph, idx) => (
+                 <p key={idx} className="mb-6">{paragraph}</p>
+              ))}
             </article>
+
             <div className="mt-24 pt-12 border-t border-zinc-900 text-center">
               <p className="text-zinc-600 italic font-serif">The end.</p>
             </div>
@@ -614,6 +761,7 @@
         const [content, setContent] = useState(initialStory?.content || '');
         const [tags, setTags] = useState(initialStory?.tags.join(', ') || '');
         const [authorName, setAuthorName] = useState(initialStory?.authorName || '');
+        const [email, setEmail] = useState(''); // New field for Google Sheets
         const [coverImage, setCoverImage] = useState(initialStory?.coverImage || '');
         const [isGenerating, setIsGenerating] = useState(false);
         const [aiMode, setAiMode] = useState(false);
@@ -626,50 +774,52 @@
           }
 
           const isGuest = defaultAuthorType === 'GUEST';
-          const isPublished = isGuest ? false : shouldPublish;
-
-          const newStory = {
-            id: initialStory?.id || crypto.randomUUID(),
-            title: title || 'Untitled',
-            excerpt: content.substring(0, 100) + '...',
-            content,
-            createdAt: initialStory?.createdAt || Date.now(),
-            updatedAt: Date.now(),
-            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-            isPublished: isPublished,
-            coverImage: coverImage.trim() ? coverImage.trim() : (initialStory?.coverImage || `https://picsum.photos/seed/${Date.now()}/800/600?grayscale`),
-            authorType: initialStory?.authorType || defaultAuthorType,
-            authorName: authorName || (defaultAuthorType === 'OWNER' ? 'The Curator' : 'Anonymous')
-          };
           
           if (isGuest) {
-            // Netlify Form Submission logic for Guest
+            // --- GOOGLE SHEETS SUBMISSION LOGIC ---
+            if (GOOGLE_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbx_YOUR_SCRIPT_ID_HERE/exec") {
+                alert("Please configure the Google Script URL in the code!");
+                return;
+            }
+
             setIsSubmitting(true);
             try {
-              const formData = new FormData();
-              formData.append('form-name', 'community-stories');
-              formData.append('title', newStory.title);
-              formData.append('author', newStory.authorName);
-              formData.append('content', newStory.content);
-              formData.append('tags', tags);
-              formData.append('coverImage', newStory.coverImage);
+              const payload = {
+                author: authorName || 'Anonymous',
+                email: email,
+                title: title,
+                content: content
+              };
               
-              await fetch('/', {
+              await fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams(formData).toString()
+                body: JSON.stringify(payload)
               });
-              
-              alert("Your tale has been whispered to the void (Sent to Admin).");
-              onSave(null); // Signal completion without saving to local storage
+
+              alert("Your tale has been whispered to the void (and sent to Google Sheets).");
+              onCancel(); // Go back home
             } catch (error) {
-              console.error(error);
-              alert("Transmission failed. The void rejects your offering.");
+              console.error("Submission error:", error);
+              alert("The spirits blocked the signal. Try again.");
             } finally {
               setIsSubmitting(false);
             }
           } else {
-            // Owner Logic - Save Locally
+            // --- OWNER/ADMIN LOGIC (LOCAL STORAGE) ---
+            const newStory = {
+              id: initialStory?.id || crypto.randomUUID(),
+              title: title || 'Untitled',
+              excerpt: content.substring(0, 100) + '...',
+              content,
+              createdAt: initialStory?.createdAt || Date.now(),
+              updatedAt: Date.now(),
+              tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+              isPublished: shouldPublish,
+              coverImage: coverImage.trim() ? coverImage.trim() : (initialStory?.coverImage || `https://picsum.photos/seed/${Date.now()}/800/600?grayscale`),
+              authorType: defaultAuthorType,
+              authorName: authorName || 'The Curator'
+            };
+            
             onSave(newStory);
           }
         };
@@ -678,9 +828,13 @@
           setIsGenerating(true);
           try {
             const result = await generateStoryContent(content, action);
-            if (action === GeminiAction.CONTINUE) setContent(prev => prev + "\n\n" + result);
-            else if (action === GeminiAction.IMPROVE) setContent(prev => prev + "\n\n--- AI Suggestion ---\n" + result);
-            else setContent(prev => prev + "\n\n--- AI Ideas ---\n" + result);
+            if (action === GeminiAction.CONTINUE) {
+              setContent(prev => prev + "\n\n" + result);
+            } else if (action === GeminiAction.IMPROVE) {
+              setContent(prev => prev + "\n\n--- AI Suggestion ---\n" + result);
+            } else {
+              setContent(prev => prev + "\n\n--- AI Ideas ---\n" + result);
+            }
           } catch (error) {
             alert("The spirits were silent. (API Error)");
           } finally {
@@ -714,58 +868,141 @@
                 
                 {defaultAuthorType === 'OWNER' ? (
                   <>
-                    <button onClick={() => handleSave(false)} className="px-4 py-2 bg-zinc-800 text-zinc-300 font-bold rounded-full hover:bg-zinc-700 transition-all flex items-center gap-2 border border-zinc-700">
+                    <button 
+                      onClick={() => handleSave(false)}
+                      className="px-4 py-2 bg-zinc-800 text-zinc-300 font-bold rounded-full hover:bg-zinc-700 transition-all flex items-center gap-2 border border-zinc-700"
+                    >
                       <FileText size={16} /> Save Draft
                     </button>
-                    <button onClick={() => handleSave(true)} className="px-6 py-2 bg-zinc-100 text-zinc-950 font-bold rounded-full hover:bg-white hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all flex items-center gap-2">
+                    <button 
+                      onClick={() => handleSave(true)}
+                      className="px-6 py-2 bg-zinc-100 text-zinc-950 font-bold rounded-full hover:bg-white hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all flex items-center gap-2"
+                    >
                       <UploadCloud size={16} /> Publish
                     </button>
                   </>
                 ) : (
                    <button 
-                    onClick={() => handleSave(false)}
                     disabled={isSubmitting}
+                    onClick={() => handleSave(false)}
                     className="px-6 py-2 bg-zinc-100 text-zinc-950 font-bold rounded-full hover:bg-white hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all flex items-center gap-2 disabled:opacity-50"
                   >
                     {isSubmitting ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Submit
                   </button>
                 )}
+
               </div>
             </div>
 
+            {/* AI Panel */}
             {aiMode && (
               <div className="mb-6 p-4 glass-panel rounded-xl border-l-4 border-purple-600 animate-fade-in">
                 <h3 className="text-purple-300 text-sm font-bold uppercase tracking-wider mb-3">Invoke the Machine Spirit</h3>
                 <div className="flex flex-wrap gap-2">
-                  <button disabled={isGenerating} onClick={() => handleAI(GeminiAction.CONTINUE)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50">Continue Story</button>
-                  <button disabled={isGenerating} onClick={() => handleAI(GeminiAction.IMPROVE)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50">Enhance Prose</button>
-                  <button disabled={isGenerating} onClick={() => handleAI(GeminiAction.IDEAS)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50">Generate Ideas</button>
-                  <button disabled={isGenerating} onClick={handleGenerateTitle} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50 flex items-center gap-2"><RefreshCw size={12}/> Suggest Title</button>
+                  <button 
+                    disabled={isGenerating}
+                    onClick={() => handleAI(GeminiAction.CONTINUE)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50"
+                  >
+                    Continue Story
+                  </button>
+                  <button 
+                    disabled={isGenerating}
+                    onClick={() => handleAI(GeminiAction.IMPROVE)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50"
+                  >
+                    Enhance Prose
+                  </button>
+                   <button 
+                    disabled={isGenerating}
+                    onClick={() => handleAI(GeminiAction.IDEAS)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50"
+                  >
+                    Generate Ideas
+                  </button>
+                   <button 
+                    disabled={isGenerating}
+                    onClick={handleGenerateTitle}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm text-zinc-300 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <RefreshCw size={12}/> Suggest Title
+                  </button>
                 </div>
                 {isGenerating && <div className="mt-3 flex items-center gap-2 text-purple-400 text-sm"><Loader2 className="animate-spin" size={14}/> Communing with the void...</div>}
               </div>
             )}
 
+            {/* Editor Inputs */}
             <div className="flex-1 flex flex-col gap-6">
-              <input type="text" placeholder="Enter Title..." value={title} onChange={(e) => setTitle(e.target.value)} className="bg-transparent text-4xl md:text-5xl font-serif text-white placeholder-zinc-700 focus:outline-none w-full" />
+              <input
+                type="text"
+                placeholder="Enter Title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-transparent text-4xl md:text-5xl font-serif text-white placeholder-zinc-700 focus:outline-none w-full"
+              />
+              
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 flex items-center gap-2 text-zinc-500 border-b border-zinc-900 pb-2">
                   <span className="text-xs uppercase tracking-widest whitespace-nowrap">Tags:</span>
-                  <input type="text" placeholder="Horror, Sci-fi..." value={tags} onChange={(e) => setTags(e.target.value)} className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full" />
+                  <input
+                    type="text"
+                    placeholder="Horror, Sci-fi..."
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full"
+                  />
                 </div>
+
                 <div className="flex-1 flex items-center gap-2 text-zinc-500 border-b border-zinc-900 pb-2">
                   <span className="text-xs uppercase tracking-widest whitespace-nowrap">Cover:</span>
-                  <input type="text" placeholder="Image URL (Optional)" value={coverImage} onChange={(e) => setCoverImage(e.target.value)} className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full" />
-                  {coverImage && <a href={coverImage} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-white"><ImageIcon size={14} /></a>}
+                  <input
+                    type="text"
+                    placeholder="Image URL (Optional)"
+                    value={coverImage}
+                    onChange={(e) => setCoverImage(e.target.value)}
+                    className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full"
+                  />
+                  {coverImage && (
+                    <a href={coverImage} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-white">
+                      <ImageIcon size={14} />
+                    </a>
+                  )}
                 </div>
+                
                 {(defaultAuthorType === 'GUEST' || (initialStory && initialStory.authorType === 'GUEST')) && (
+                  <>
                    <div className="flex-1 flex items-center gap-2 text-zinc-500 border-b border-zinc-900 pb-2">
                     <span className="text-xs uppercase tracking-widest whitespace-nowrap">Author:</span>
-                    <input type="text" placeholder="Your Name (Optional)" value={authorName} onChange={(e) => setAuthorName(e.target.value)} className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full" />
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={authorName}
+                      onChange={(e) => setAuthorName(e.target.value)}
+                      className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full"
+                    />
                   </div>
+                  <div className="flex-1 flex items-center gap-2 text-zinc-500 border-b border-zinc-900 pb-2">
+                    <span className="text-xs uppercase tracking-widest whitespace-nowrap">Email:</span>
+                    <input
+                      type="email"
+                      placeholder="Required for submission"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full"
+                    />
+                  </div>
+                  </>
                 )}
               </div>
-              <textarea placeholder="Start writing your story here..." value={content} onChange={(e) => setContent(e.target.value)} className="flex-1 bg-transparent resize-none focus:outline-none text-lg leading-relaxed font-serif placeholder-zinc-800 min-h-[50vh]" style={{ color: 'var(--text-color)' }} />
+
+              <textarea
+                placeholder="Start writing your story here..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="flex-1 bg-transparent resize-none focus:outline-none text-lg leading-relaxed font-serif placeholder-zinc-800 min-h-[50vh]"
+                style={{ color: 'var(--text-color)' }}
+              />
             </div>
           </div>
         );
@@ -784,26 +1021,38 @@
         const [password, setPassword] = useState('');
         const [newPasscode, setNewPasscode] = useState('');
         
+        // Customization State
         const [subtitle, setSubtitle] = useState('');
         const [newSubtitle, setNewSubtitle] = useState('');
         const [bgImage, setBgImage] = useState('');
         const [newBgInput, setNewBgInput] = useState('');
         const [theme, setTheme] = useState({ accentColor: '#8a0000', textColor: '#e0e0e0' });
 
+        // Founder Profile State
         const [founderProfile, setFounderProfile] = useState({ name: '', tagline: '', bio: '', imageUrl: '' });
         const [settingsTab, setSettingsTab] = useState('dashboard');
 
+        // Admin Dashboard State
         const [adminTab, setAdminTab] = useState('submissions');
         const [expandedStoryId, setExpandedStoryId] = useState(null);
         const [activityLogs, setActivityLogs] = useState([]);
+        
+        // --- NEW: SHEET SUBMISSIONS STATE ---
+        const [sheetSubmissions, setSheetSubmissions] = useState([]);
+        const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
+        // Treasury State
         const [balance, setBalance] = useState(0);
         const [linkedCard, setLinkedCard] = useState('');
         const [newCardNumber, setNewCardNumber] = useState('');
         
+        // Donation Form State
         const [donationAmount, setDonationAmount] = useState('');
         const [isProcessingDonation, setIsProcessingDonation] = useState(false);
+
+        // Fun Animation State
         const [fallingItems, setFallingItems] = useState([]);
+        // PWA Install State
         const [deferredPrompt, setDeferredPrompt] = useState(null);
 
         useEffect(() => {
@@ -816,41 +1065,113 @@
           setFounderProfile(getFounderProfile());
           refreshTreasury();
 
-          const handleBeforeInstallPrompt = (e) => { e.preventDefault(); setDeferredPrompt(e); };
+          const handleBeforeInstallPrompt = (e) => {
+             e.preventDefault();
+             setDeferredPrompt(e);
+          };
           window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
           return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         }, []);
 
-        const refreshStories = () => setStories(getStories());
-        const refreshLogs = () => setActivityLogs(getLogs());
-        const refreshTreasury = () => { setBalance(getBalance()); setLinkedCard(getLinkedCard()); };
+        // --- FETCH SUBMISSIONS FROM GOOGLE SHEETS ---
+        useEffect(() => {
+          if (isOwner && view === 'ADMIN' && adminTab === 'submissions') {
+            fetchSubmissions();
+          }
+        }, [isOwner, view, adminTab]);
+
+        const fetchSubmissions = async () => {
+          if (GOOGLE_SCRIPT_URL.includes("YOUR_SCRIPT_ID")) {
+             return; // Don't fetch if not configured
+          }
+          setIsLoadingSubmissions(true);
+          try {
+             const res = await fetch(GOOGLE_SCRIPT_URL);
+             const data = await res.json();
+             // Add fake IDs to them for UI handling
+             const withIds = data.map((sub, idx) => ({
+               ...sub,
+               id: 'sheet_' + idx,
+               createdAt: new Date(sub.timestamp).getTime()
+             }));
+             setSheetSubmissions(withIds.reverse()); // Newest first
+          } catch (e) {
+            console.error("Failed to fetch sheet submissions", e);
+          } finally {
+            setIsLoadingSubmissions(false);
+          }
+        };
+
+        const refreshStories = () => {
+          setStories(getStories());
+        };
+
+        const refreshLogs = () => {
+          setActivityLogs(getLogs());
+        };
+
+        const refreshTreasury = () => {
+          setBalance(getBalance());
+          setLinkedCard(getLinkedCard());
+        };
 
         const triggerCats = () => {
-          setFallingItems(Array.from({ length: 15 }).map((_, i) => ({ id: i, left: `${Math.random() * 90}%`, delay: `${Math.random() * 0.5}s`, emoji: '🐈‍⬛', type: 'cat' })));
-          setTimeout(() => setFallingItems([]), 2500);
-        };
-        const triggerCelebration = () => {
-          setFallingItems(Array.from({ length: 40 }).map((_, i) => ({ id: i, left: `${Math.random() * 95}%`, delay: `${Math.random() * 2}s`, emoji: Math.random() > 0.5 ? '🐈‍⬛' : '❤️', type: Math.random() > 0.5 ? 'cat' : 'heart' })));
-          setTimeout(() => setFallingItems([]), 5000);
+          const items = Array.from({ length: 15 }).map((_, i) => ({
+            id: i,
+            left: `${Math.random() * 90}%`,
+            delay: `${Math.random() * 0.5}s`,
+            emoji: '🐈‍⬛',
+            type: 'cat'
+          }));
+          setFallingItems(items);
+          setTimeout(() => {
+            setFallingItems([]);
+          }, 2500);
         };
 
-        const handleCreateNew = () => { setActiveStory(undefined); setView('CREATE'); setMobileMenuOpen(false); };
+        const triggerCelebration = () => {
+          const items = Array.from({ length: 40 }).map((_, i) => {
+            const isCat = Math.random() > 0.5;
+            return {
+              id: i,
+              left: `${Math.random() * 95}%`,
+              delay: `${Math.random() * 2}s`,
+              emoji: isCat ? '🐈‍⬛' : '❤️',
+              type: isCat ? 'cat' : 'heart'
+            };
+          });
+          setFallingItems(items);
+          setTimeout(() => {
+            setFallingItems([]);
+          }, 5000);
+        };
+
+        const handleCreateNew = () => {
+          setActiveStory(undefined);
+          setView('CREATE');
+          setMobileMenuOpen(false);
+        };
 
         const handleSaveStory = (story) => {
-          if (!story) {
-            // Guest submitted form, just go back to community
-            setView('COMMUNITY');
-            return;
-          }
           saveStory(story);
           refreshStories();
+          
           const isNew = !stories.find(s => s.id === story.id);
           if (story.authorType === 'OWNER') {
              logActivity(isNew ? 'CREATE_STORY' : 'UPDATE_STORY', `Saved story: ${story.title}`);
              refreshLogs();
           }
-          if (story.isPublished) { setActiveStory(story); setView('READ'); }
-          else { if (story.authorType === 'OWNER') setView('HOME'); else setView('COMMUNITY'); }
+
+          if (story.isPublished) {
+            setActiveStory(story);
+            setView('READ');
+          } else {
+            if (story.authorType === 'OWNER') {
+                setView('HOME'); 
+            } else {
+                setView('COMMUNITY');
+            }
+          }
         };
 
         const handleDeleteStory = (id) => {
@@ -863,76 +1184,255 @@
           }
         };
 
-        // Manual entry for approved stories from Netlify Forms
-        const handleManualEntry = () => {
-           setActiveStory({
-             id: crypto.randomUUID(),
-             title: '',
-             excerpt: '',
-             content: '',
-             createdAt: Date.now(),
-             updatedAt: Date.now(),
-             tags: ['Community'],
-             isPublished: true,
-             authorType: 'GUEST',
-             authorName: 'Anonymous'
-           });
-           setView('EDIT');
+        // --- NEW: APPROVE FROM SHEET ---
+        const handleApproveSubmission = (submission) => {
+          // Convert sheet submission to actual Story object
+          const newStory = {
+            id: crypto.randomUUID(),
+            title: submission.title,
+            excerpt: submission.content.substring(0, 100) + '...',
+            content: submission.content,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            tags: ['Community', 'Guest'],
+            isPublished: true, // MAKE LIVE
+            coverImage: `https://picsum.photos/seed/${Date.now()}/800/600?grayscale`,
+            authorType: 'GUEST',
+            authorName: submission.author
+          };
+          
+          saveStory(newStory);
+          refreshStories();
+          logActivity('APPROVE', `Approved guest story: ${submission.title}`);
+          refreshLogs();
+          
+          // Remove from local view of sheet submissions
+          setSheetSubmissions(prev => prev.filter(s => s.id !== submission.id));
         };
 
-        const handleClearLogs = () => { if (confirm("Wipe activity history?")) { clearLogs(); refreshLogs(); } };
-        const handleReadStory = (story) => { setActiveStory(story); setView('READ'); };
-        const handleEditStory = () => { if (!activeStory) return; if (!isOwner && activeStory.authorType === 'OWNER') return; setView('EDIT'); };
-        const toggleLogin = () => { if (isOwner) setIsOwner(false); else setShowLogin(true); setMobileMenuOpen(false); };
+        const handleDenySubmission = (id) => {
+          if (confirm("Deny and erase this submission?")) {
+            setSheetSubmissions(prev => prev.filter(s => s.id !== id));
+            // Note: Does not actually delete from Google Sheet due to API limitations without complex setup
+          }
+        };
+        
+        const handleClearLogs = () => {
+          if (confirm("Are you sure you want to wipe the activity history? This cannot be undone.")) {
+            clearLogs();
+            refreshLogs();
+          }
+        };
+
+        const handleReadStory = (story) => {
+          setActiveStory(story);
+          setView('READ');
+        };
+
+        const handleEditStory = () => {
+          if (!activeStory) return;
+          if (!isOwner && activeStory.authorType === 'OWNER') return;
+          setView('EDIT');
+        };
+
+        const toggleLogin = () => {
+          if (isOwner) {
+            setIsOwner(false);
+          } else {
+            setShowLogin(true);
+          }
+          setMobileMenuOpen(false);
+        }
+
         const handleLoginSubmit = async (e) => {
           e.preventDefault();
-          if (await verifyPasscode(password)) { setIsOwner(true); setShowLogin(false); setPassword(''); triggerCats(); logActivity('LOGIN', 'Curator logged in'); refreshLogs(); }
-          else alert("Access denied.");
+          const isValid = await verifyPasscode(password);
+          if (isValid) {
+            setIsOwner(true);
+            setShowLogin(false);
+            setPassword('');
+            triggerCats(); 
+            logActivity('LOGIN', 'Curator logged in');
+            refreshLogs();
+          } else {
+            alert("Access denied.");
+          }
+        }
+
+        const handleChangePasscode = async (e) => {
+          e.preventDefault();
+          if (newPasscode.trim().length > 0) {
+            await savePasscode(newPasscode);
+            setNewPasscode('');
+            logActivity('SETTINGS', 'Passcode changed');
+            refreshLogs();
+            alert("Passcode updated successfully.");
+          }
+        }
+
+        const handleSaveSubtitle = () => {
+          if (newSubtitle.trim()) {
+            saveHeroSubtitle(newSubtitle);
+            setSubtitle(newSubtitle);
+            logActivity('SETTINGS', 'Subtitle updated');
+            refreshLogs();
+            alert("Chronicle subtitle updated.");
+          }
+        }
+
+        const handleSaveBg = () => {
+          if (newBgInput.trim()) {
+              saveBackgroundImage(newBgInput);
+              setBgImage(newBgInput);
+              logActivity('SETTINGS', 'Background updated');
+              refreshLogs();
+              alert("Live background updated.");
+          }
+        }
+
+        const handleSaveTheme = () => {
+          saveThemeSettings(theme);
+          logActivity('SETTINGS', 'Theme updated');
+          refreshLogs();
+          alert("Theme colors updated.");
+        }
+
+        const handleSaveFounder = () => {
+          saveFounderProfile(founderProfile);
+          logActivity('SETTINGS', 'Founder profile updated');
+          refreshLogs();
+          alert("Founder profile updated.");
+        }
+
+        const handleLinkCard = (e) => {
+          e.preventDefault();
+          if (newCardNumber.length >= 4) {
+            const last4 = newCardNumber.slice(-4);
+            saveLinkedCard(last4);
+            setLinkedCard(last4);
+            setNewCardNumber('');
+            logActivity('TREASURY', `Linked card ending in ${last4}`);
+            refreshLogs();
+            alert(`Card ending in ${last4} linked successfully.`);
+          } else {
+            alert("Please enter a valid card number.");
+          }
+        }
+
+        const handleWithdraw = () => {
+          if (!linkedCard) return;
+          if (balance <= 0) return;
+          
+          if (confirm(`Withdraw $${balance.toFixed(2)} to card ending in ${linkedCard}?`)) {
+            withdrawBalance();
+            refreshTreasury();
+            logActivity('TREASURY', `Withdrew $${balance.toFixed(2)}`);
+            refreshLogs();
+            alert("Funds withdrawn successfully. The transfer has begun.");
+          }
+        }
+
+        const handleProcessDonation = (e) => {
+          e.preventDefault();
+          if (!donationAmount || Number(donationAmount) <= 0) {
+            alert("Please enter a valid amount.");
+            return;
+          }
+          
+          setIsProcessingDonation(true);
+          setTimeout(() => {
+            addToBalance(Number(donationAmount));
+            refreshTreasury();
+            setIsProcessingDonation(false);
+            setDonationAmount('');
+            triggerCelebration();
+            logActivity('DONATION', `Received offering of $${donationAmount}`);
+            refreshLogs();
+            alert("Your offering has been accepted. The Curator thanks you.");
+            setView('HOME');
+          }, 1500);
+        }
+
+        const handleInstallClick = () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+              if (choiceResult.outcome === 'accepted') {
+                setDeferredPrompt(null);
+              }
+            });
+          }
         };
-        const handleChangePasscode = async (e) => { e.preventDefault(); if (newPasscode.trim()) { await savePasscode(newPasscode); setNewPasscode(''); logActivity('SETTINGS', 'Passcode changed'); refreshLogs(); alert("Passcode updated."); } };
-        const handleSaveSubtitle = () => { if (newSubtitle.trim()) { saveHeroSubtitle(newSubtitle); setSubtitle(newSubtitle); logActivity('SETTINGS', 'Subtitle updated'); refreshLogs(); alert("Subtitle updated."); } };
-        const handleSaveBg = () => { if (newBgInput.trim()) { saveBackgroundImage(newBgInput); setBgImage(newBgInput); logActivity('SETTINGS', 'Background updated'); refreshLogs(); alert("Background updated."); } };
-        const handleSaveTheme = () => { saveThemeSettings(theme); logActivity('SETTINGS', 'Theme updated'); refreshLogs(); alert("Theme updated."); };
-        const handleSaveFounder = () => { saveFounderProfile(founderProfile); logActivity('SETTINGS', 'Profile updated'); refreshLogs(); alert("Profile updated."); };
-        const handleLinkCard = (e) => { e.preventDefault(); if (newCardNumber.length >= 4) { const last4 = newCardNumber.slice(-4); saveLinkedCard(last4); setLinkedCard(last4); setNewCardNumber(''); logActivity('TREASURY', `Linked card ${last4}`); refreshLogs(); alert("Card linked."); } else alert("Invalid card."); };
-        const handleWithdraw = () => { if (!linkedCard || balance <= 0) return; if (confirm(`Withdraw $${balance.toFixed(2)}?`)) { withdrawBalance(); refreshTreasury(); logActivity('TREASURY', `Withdrew $${balance.toFixed(2)}`); refreshLogs(); alert("Funds withdrawn."); } };
-        const handleProcessDonation = (e) => { e.preventDefault(); if (!donationAmount || Number(donationAmount) <= 0) return; setIsProcessingDonation(true); setTimeout(() => { addToBalance(Number(donationAmount)); refreshTreasury(); setIsProcessingDonation(false); setDonationAmount(''); triggerCelebration(); logActivity('DONATION', `Donation $${donationAmount}`); refreshLogs(); alert("Offering accepted."); setView('HOME'); }, 1500); };
-        const handleInstallClick = () => { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then((c) => { if (c.outcome === 'accepted') setDeferredPrompt(null); }); } };
 
         const publishedOwnerStories = stories.filter(s => s.authorType === 'OWNER' && s.isPublished);
         const draftOwnerStories = stories.filter(s => s.authorType === 'OWNER' && !s.isPublished);
         const communityStories = stories.filter(s => s.authorType === 'GUEST' && s.isPublished);
+        
         const isVideoBg = bgImage.match(/\.(mp4|webm)$/i);
 
         const renderHome = () => (
           <div className="animate-fade-in p-6 md:p-12 max-w-7xl mx-auto relative z-10">
             <header className="mb-16 md:mb-24 text-center md:text-left">
-              <h1 className="text-5xl md:text-8xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-600 mb-6 drop-shadow-lg tracking-tight">Nocturne Weave</h1>
-              <p className="text-lg md:text-xl font-light max-w-2xl leading-relaxed whitespace-pre-wrap opacity-90" style={{ color: 'var(--text-color)' }}>{subtitle}</p>
+              <h1 className="text-5xl md:text-8xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-600 mb-6 drop-shadow-lg tracking-tight">
+                Nocturne Weave
+              </h1>
+              <p className="text-lg md:text-xl font-light max-w-2xl leading-relaxed whitespace-pre-wrap opacity-90" style={{ color: 'var(--text-color)' }}>
+                {subtitle}
+              </p>
             </header>
+            
             {isOwner && draftOwnerStories.length > 0 && (
               <div className="mb-16 border-b border-zinc-900/50 pb-8 animate-fade-in">
-                 <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-amber-600 flex items-center gap-2 mb-6"><FileText size={14}/> Unpublished Drafts</h2>
+                 <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-amber-600 flex items-center gap-2 mb-6">
+                   <FileText size={14}/> Unpublished Drafts
+                 </h2>
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                    {draftOwnerStories.map(story => (
                       <div key={story.id} className="relative group opacity-80 hover:opacity-100 transition-opacity">
                         <StoryCard story={story} onClick={handleReadStory} />
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteStory(story.id); }} className="absolute top-2 right-2 p-2 bg-red-900/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30"><Trash2 size={14}/></button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteStory(story.id); }}
+                          className="absolute top-2 right-2 p-2 bg-red-900/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                        >
+                          <Trash2 size={14}/>
+                        </button>
                       </div>
                    ))}
                  </div>
               </div>
             )}
+
             <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2"><BookOpen size={14}/> Latest Entries</h2>
-              {isOwner && <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-zinc-800 rounded-full hover:bg-zinc-900 transition-colors text-xs uppercase tracking-wide text-zinc-300"><Plus size={14} /> New Chronicle</button>}
+              <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
+                <BookOpen size={14}/> Latest Entries
+              </h2>
+              {isOwner && (
+                <button 
+                  onClick={handleCreateNew}
+                  className="flex items-center gap-2 px-4 py-2 border border-zinc-800 rounded-full hover:bg-zinc-900 transition-colors text-xs uppercase tracking-wide text-zinc-300"
+                >
+                  <Plus size={14} /> New Chronicle
+                </button>
+              )}
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {publishedOwnerStories.length === 0 && !isOwner && <div className="col-span-full text-center py-20 text-zinc-600 italic">The archives are silent...</div>}
+              {publishedOwnerStories.length === 0 && !isOwner && (
+                <div className="col-span-full text-center py-20 text-zinc-600 italic">
+                   The archives are silent...
+                 </div>
+              )}
               {publishedOwnerStories.map(story => (
                  <div key={story.id} className="relative group">
                     <StoryCard story={story} onClick={handleReadStory} />
-                    {isOwner && <button onClick={(e) => { e.stopPropagation(); handleDeleteStory(story.id); }} className="absolute top-2 right-2 p-2 bg-red-900/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30"><Trash2 size={14}/></button>}
+                    {isOwner && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteStory(story.id); }}
+                        className="absolute top-2 right-2 p-2 bg-red-900/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                      >
+                        <Trash2 size={14}/>
+                      </button>
+                    )}
                  </div>
               ))}
             </div>
@@ -942,22 +1442,47 @@
         const renderCommunity = () => (
           <div className="animate-fade-in p-6 md:p-12 max-w-7xl mx-auto relative z-10">
             <header className="mb-16 md:mb-24 text-center md:text-left">
-              <h1 className="text-4xl md:text-7xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-mystic-300 to-zinc-800 mb-6 drop-shadow-lg tracking-tight">Whispers</h1>
-              <p className="text-lg md:text-xl font-light max-w-2xl leading-relaxed opacity-90" style={{ color: 'var(--text-color)' }}>Voices from the void. Stories submitted by the lost souls of the community.</p>
+              <h1 className="text-4xl md:text-7xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-mystic-300 to-zinc-800 mb-6 drop-shadow-lg tracking-tight">
+                Whispers
+              </h1>
+              <p className="text-lg md:text-xl font-light max-w-2xl leading-relaxed opacity-90" style={{ color: 'var(--text-color)' }}>
+                Voices from the void. Stories submitted by the lost souls of the community.
+              </p>
             </header>
+
             <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2"><Users size={14}/> Community Tales</h2>
-              <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border rounded-full transition-colors text-xs uppercase tracking-wide font-bold" style={{ borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }}><PenTool size={14} /> Submit a Tale</button>
+              <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
+                <Users size={14}/> Community Tales
+              </h2>
+              <button 
+                onClick={handleCreateNew}
+                className="flex items-center gap-2 px-4 py-2 border rounded-full transition-colors text-xs uppercase tracking-wide font-bold"
+                style={{ borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }}
+              >
+                <PenTool size={14} /> Submit a Tale
+              </button>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {communityStories.length === 0 ? <div className="col-span-full text-center py-20 text-zinc-600 italic">No whispers yet. Be the first to speak...</div> :
+              {communityStories.length === 0 ? (
+                 <div className="col-span-full text-center py-20 text-zinc-600 italic">
+                   No whispers yet. Be the first to speak...
+                 </div>
+              ) : (
                 communityStories.map(story => (
                   <div key={story.id} className="relative group">
                     <StoryCard story={story} onClick={handleReadStory} />
-                    {isOwner && <button onClick={(e) => { e.stopPropagation(); handleDeleteStory(story.id); }} className="absolute top-2 right-2 p-2 bg-red-900/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30"><Trash2 size={14}/></button>}
+                    {isOwner && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteStory(story.id); }}
+                        className="absolute top-2 right-2 p-2 bg-red-900/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30"
+                      >
+                        <Trash2 size={14}/>
+                      </button>
+                    )}
                  </div>
                 ))
-              }
+              )}
             </div>
           </div>
         );
@@ -966,76 +1491,150 @@
           <div className="animate-fade-in p-6 md:p-12 max-w-7xl mx-auto relative z-10 min-h-screen">
             <header className="mb-12 flex justify-between items-end">
               <div>
-                <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-4">Overseer's Desk</h1>
-                <p className="text-zinc-400">Manage the realm.</p>
+                <h1 className="text-4xl md:text-6xl font-serif font-bold text-white mb-4">
+                  Overseer's Desk
+                </h1>
+                <p className="text-zinc-400">
+                  Manage the realm.
+                </p>
               </div>
               <div className="bg-zinc-900 rounded-lg p-1 flex gap-1">
-                 <button onClick={() => setAdminTab('submissions')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${adminTab === 'submissions' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>Community Submissions</button>
-                 <button onClick={() => setAdminTab('monies')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${adminTab === 'monies' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>Monies</button>
-                 <button onClick={() => setAdminTab('activity')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${adminTab === 'activity' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>Activity Log</button>
+                 <button 
+                  onClick={() => setAdminTab('submissions')}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${adminTab === 'submissions' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                 >
+                   Community Submissions
+                 </button>
+                 <button 
+                  onClick={() => setAdminTab('monies')}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${adminTab === 'monies' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                 >
+                   Monies
+                 </button>
+                 <button 
+                  onClick={() => setAdminTab('activity')}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${adminTab === 'activity' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                 >
+                   Activity Log
+                 </button>
               </div>
             </header>
       
             {adminTab === 'submissions' && (
               <div className="grid gap-6 animate-fade-in">
-                  <div className="p-8 border border-zinc-800 bg-zinc-900/40 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><ExternalLink size={20}/> External Inbox</h3>
-                      <p className="text-zinc-400 max-w-lg text-sm leading-relaxed">
-                        Guest submissions are now securely collected via Netlify Forms to ensure reliability. 
-                        Please review submissions in your Netlify Dashboard.
-                      </p>
+                {isLoadingSubmissions && <div className="text-center p-8 text-zinc-500"><Loader2 className="animate-spin inline mr-2"/> Fetching scrolls from the archives...</div>}
+                
+                {!isLoadingSubmissions && sheetSubmissions.length === 0 ? (
+                  <div className="p-20 border border-zinc-800 border-dashed rounded-xl text-center bg-zinc-900/20">
+                     <Ghost className="w-16 h-16 mx-auto text-zinc-700 mb-6 opacity-50"/>
+                     <p className="text-zinc-500 italic text-lg">The void is silent. No tales await judgement.</p>
+                     {GOOGLE_SCRIPT_URL.includes("YOUR_SCRIPT_ID") && <p className="text-red-500 text-sm mt-4 font-bold">⚠️ Google Apps Script URL not configured!</p>}
+                  </div>
+                ) : (
+                  sheetSubmissions.map(story => (
+                    <div key={story.id} className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-xl flex flex-col gap-6 hover:border-zinc-700 transition-colors">
+                       <div className="flex justify-between items-start">
+                         <div>
+                           <h3 className="text-2xl font-serif font-bold text-zinc-200">{story.title}</h3>
+                           <div className="flex items-center gap-4 mt-2 text-sm text-zinc-500">
+                             <span className="flex items-center gap-1"><User size={12}/> {story.author || 'Anonymous'}</span>
+                             {story.email && <span className="flex items-center gap-1"><Mail size={12}/> {story.email}</span>}
+                             <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(story.timestamp).toLocaleDateString()}</span>
+                           </div>
+                         </div>
+                         <div className="flex gap-3">
+                           <button 
+                             onClick={() => handleApproveSubmission(story)}
+                             className="flex items-center gap-2 px-6 py-2 bg-green-900/20 text-green-400 border border-green-900/30 rounded-lg hover:bg-green-900/40 transition-colors text-xs uppercase font-bold tracking-wider"
+                           >
+                             <Check size={16} /> Approve
+                           </button>
+                           <button 
+                             onClick={() => handleDenySubmission(story.id)}
+                             className="flex items-center gap-2 px-6 py-2 bg-red-900/20 text-red-400 border border-red-900/30 rounded-lg hover:bg-red-900/40 transition-colors text-xs uppercase font-bold tracking-wider"
+                           >
+                             <Trash2 size={16} /> Deny
+                           </button>
+                         </div>
+                       </div>
+                       
+                       <div className="relative">
+                          {expandedStoryId === story.id ? (
+                            <div className="bg-black/40 p-6 rounded-lg border border-white/5 animate-fade-in">
+                               <p className="text-zinc-300 font-serif whitespace-pre-wrap leading-relaxed">{story.content}</p>
+                               <button 
+                                onClick={() => setExpandedStoryId(null)}
+                                className="mt-4 text-xs text-zinc-500 hover:text-white uppercase tracking-wider font-bold"
+                               >
+                                 Collapse Text
+                               </button>
+                            </div>
+                          ) : (
+                             <div className="bg-black/20 p-4 rounded-lg border border-white/5 cursor-pointer hover:bg-black/30 transition-colors" onClick={() => setExpandedStoryId(story.id)}>
+                                <p className="text-zinc-400 font-serif line-clamp-3">{story.content.substring(0, 200)}...</p>
+                                <p className="text-xs text-[var(--accent-color)] mt-2 uppercase tracking-wide font-bold">Click to read full story</p>
+                             </div>
+                          )}
+                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <a href="https://app.netlify.com" target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-zinc-100 hover:bg-white text-black font-bold rounded-lg transition-colors text-center text-sm uppercase tracking-wide">
-                        Open Netlify Inbox
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-8 mb-4">
-                     <h3 className="text-lg font-serif font-bold text-zinc-300">Publish Approved Story</h3>
-                  </div>
-
-                  <div className="bg-black/20 border border-zinc-800 border-dashed rounded-xl p-12 text-center">
-                    <p className="text-zinc-500 mb-6 italic">Have a story from the inbox ready to publish?</p>
-                    <button 
-                      onClick={handleManualEntry}
-                      className="px-8 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-full transition-colors flex items-center gap-2 mx-auto uppercase text-sm tracking-widest border border-zinc-700"
-                    >
-                      <Copy size={16}/> Transcribe Submission
-                    </button>
-                  </div>
+                  ))
+                )}
               </div>
             )}
             
             {adminTab === 'monies' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
                  <div className="bg-zinc-900/50 border border-zinc-800 p-8 rounded-xl">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-8 flex items-center gap-2"><Wallet size={16}/> Current Treasury</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-8 flex items-center gap-2">
+                       <Wallet size={16}/> Current Treasury
+                    </h3>
                     <div className="flex items-baseline gap-2 mb-8">
                        <span className="text-6xl font-serif text-white font-bold">${balance.toFixed(2)}</span>
                        <span className="text-zinc-500">USD</span>
                     </div>
-                    <button onClick={handleWithdraw} disabled={balance <= 0 || !linkedCard} className="w-full py-4 bg-amber-700 text-white font-bold rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg shadow-lg">
+                    
+                    <button 
+                      onClick={handleWithdraw}
+                      disabled={balance <= 0 || !linkedCard}
+                      className="w-full py-4 bg-amber-700 text-white font-bold rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg shadow-lg"
+                    >
                       <DollarSign size={20}/> Withdraw Funds
                     </button>
-                    {linkedCard ? <p className="text-center text-xs text-zinc-500 mt-4">Linked to card ending in •••• {linkedCard}</p> : <p className="text-center text-xs text-amber-500 mt-4">No withdrawal card linked</p>}
+                    {linkedCard ? (
+                      <p className="text-center text-xs text-zinc-500 mt-4">Linked to card ending in •••• {linkedCard}</p>
+                    ) : (
+                      <p className="text-center text-xs text-amber-500 mt-4">No withdrawal card linked</p>
+                    )}
                  </div>
+
                  <div className="bg-zinc-900/50 border border-zinc-800 p-8 rounded-xl flex flex-col justify-between">
                     <div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2"><Settings size={16}/> Configuration</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
+                         <Settings size={16}/> Configuration
+                      </h3>
                       <div className="space-y-4">
                         <div className="bg-black/40 border border-white/5 p-4 rounded-lg">
                             <h5 className="text-xs font-bold text-zinc-400 mb-3">Linked Withdrawal Method</h5>
                             <form onSubmit={handleLinkCard} className="flex gap-2">
-                              <input type="text" placeholder="Card Number" className="flex-1 bg-zinc-900/50 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-700" value={newCardNumber} onChange={(e) => setNewCardNumber(e.target.value)} />
+                              <input 
+                                type="text" 
+                                placeholder="Card Number" 
+                                className="flex-1 bg-zinc-900/50 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-700"
+                                value={newCardNumber}
+                                onChange={(e) => setNewCardNumber(e.target.value)}
+                              />
                               <button type="submit" className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs uppercase font-bold rounded hover:bg-zinc-700">Link</button>
                             </form>
                          </div>
                       </div>
                     </div>
-                    <button onClick={(e) => { e.preventDefault(); triggerCelebration(); }} className="mt-8 w-full py-3 bg-zinc-800 text-zinc-400 font-bold rounded-lg hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2 uppercase text-sm tracking-widest"><Heart size={16}/> Test Donation Effect</button>
+                    
+                    <button
+                      onClick={(e) => { e.preventDefault(); triggerCelebration(); }}
+                      className="mt-8 w-full py-3 bg-zinc-800 text-zinc-400 font-bold rounded-lg hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2 uppercase text-sm tracking-widest"
+                    >
+                      <Heart size={16}/> Test Donation Effect
+                    </button>
                  </div>
               </div>
             )}
@@ -1043,21 +1642,38 @@
             {adminTab === 'activity' && (
               <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden animate-fade-in flex flex-col">
                  <div className="p-4 border-b border-zinc-800 flex justify-end bg-black/20">
-                    <button onClick={handleClearLogs} className="text-xs text-red-400 hover:text-red-300 uppercase font-bold flex items-center gap-2 px-3 py-1.5 border border-red-900/50 rounded hover:bg-red-900/20 transition-colors"><Trash2 size={12}/> Clear History</button>
+                    <button 
+                      onClick={handleClearLogs}
+                      className="text-xs text-red-400 hover:text-red-300 uppercase font-bold flex items-center gap-2 px-3 py-1.5 border border-red-900/50 rounded hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 size={12}/> Clear History
+                    </button>
                  </div>
                  <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-zinc-400">
                        <thead className="bg-black/40 text-xs uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-800">
-                          <tr><th className="px-6 py-4">Timestamp</th><th className="px-6 py-4">Action</th><th className="px-6 py-4">Details</th></tr>
+                          <tr>
+                             <th className="px-6 py-4">Timestamp</th>
+                             <th className="px-6 py-4">Action</th>
+                             <th className="px-6 py-4">Details</th>
+                          </tr>
                        </thead>
                        <tbody className="divide-y divide-zinc-800/50">
-                          {activityLogs.length === 0 ? <tr><td colSpan={3} className="px-6 py-8 text-center text-zinc-600 italic">No activity recorded...</td></tr> : activityLogs.map((log) => (
-                             <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap font-mono text-xs">{new Date(log.timestamp).toLocaleString()}</td>
-                                <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 py-1 bg-zinc-800 rounded text-xs text-white border border-zinc-700">{log.action}</span></td>
-                                <td className="px-6 py-4 text-zinc-300">{log.details}</td>
+                          {activityLogs.length === 0 ? (
+                             <tr>
+                               <td colSpan={3} className="px-6 py-8 text-center text-zinc-600 italic">No activity recorded...</td>
                              </tr>
-                          ))}
+                          ) : (
+                            activityLogs.map((log) => (
+                               <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                                  <td className="px-6 py-4 whitespace-nowrap font-mono text-xs">{new Date(log.timestamp).toLocaleString()}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                     <span className="px-2 py-1 bg-zinc-800 rounded text-xs text-white border border-zinc-700">{log.action}</span>
+                                  </td>
+                                  <td className="px-6 py-4 text-zinc-300">{log.details}</td>
+                               </tr>
+                            ))
+                          )}
                        </tbody>
                     </table>
                  </div>
@@ -1066,43 +1682,98 @@
           </div>
         );
 
-        // ... Other Views ...
         const renderDonate = () => (
           <div className="animate-fade-in p-6 md:p-12 max-w-3xl mx-auto relative z-10 min-h-[80vh] flex flex-col justify-center">
              <header className="mb-12 text-center">
               <Heart className="w-16 h-16 mx-auto mb-6 opacity-80 animate-pulse-slow" style={{ color: 'var(--accent-color)' }} />
-              <h1 className="text-4xl md:text-6xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-500 mb-4 tracking-tight">Offer Support</h1>
-              <p className="text-lg text-zinc-400 max-w-xl mx-auto font-light">Your offerings help keep the lanterns lit and the ink flowing. The Curator is grateful for your tribute.</p>
+              <h1 className="text-4xl md:text-6xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-b from-white to-zinc-500 mb-4 tracking-tight">
+                Offer Support
+              </h1>
+              <p className="text-lg text-zinc-400 max-w-xl mx-auto font-light">
+                Your offerings help keep the lanterns lit and the ink flowing. The Curator is grateful for your tribute.
+              </p>
             </header>
+
             <div className="bg-void-900/50 backdrop-blur-sm border border-white/5 p-8 rounded-2xl shadow-2xl">
                <form onSubmit={handleProcessDonation} className="space-y-8">
                   <div>
                      <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4">Select Tribute</label>
                      <div className="grid grid-cols-3 gap-4 mb-4">
                        {[5, 10, 20].map(amount => (
-                         <button key={amount} type="button" onClick={() => setDonationAmount(amount)} className={`py-3 rounded-lg border text-lg font-serif transition-all ${donationAmount === amount ? 'bg-[var(--accent-color)] text-white border-transparent' : 'bg-transparent border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}>${amount}</button>
+                         <button 
+                           key={amount}
+                           type="button"
+                           onClick={() => setDonationAmount(amount)}
+                           className={`py-3 rounded-lg border text-lg font-serif transition-all ${donationAmount === amount ? 'bg-[var(--accent-color)] text-white border-transparent' : 'bg-transparent border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                         >
+                           ${amount}
+                         </button>
                        ))}
                      </div>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-serif text-lg">$</span>
-                       <input type="number" placeholder="Custom Amount" className="w-full bg-black/40 border border-zinc-800 rounded-lg py-3 pl-10 pr-4 text-white focus:border-[var(--accent-color)] outline-none transition-colors font-serif" value={donationAmount} onChange={(e) => setDonationAmount(Number(e.target.value))} />
+                       <input 
+                        type="number" 
+                        placeholder="Custom Amount" 
+                        className="w-full bg-black/40 border border-zinc-800 rounded-lg py-3 pl-10 pr-4 text-white focus:border-[var(--accent-color)] outline-none transition-colors font-serif"
+                        value={donationAmount}
+                        onChange={(e) => setDonationAmount(Number(e.target.value))}
+                       />
                      </div>
                   </div>
+
                   <div className="space-y-4">
                     <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500">Payment Method</label>
                     <div className="bg-black/40 border border-zinc-800 rounded-lg p-6 space-y-4">
-                      <div className="flex items-center gap-2 text-zinc-400 mb-2 border-b border-zinc-800 pb-2"><CreditCard size={16} /> <span className="text-xs uppercase">Debit / Credit Card</span><span className="ml-auto flex items-center gap-1 text-[10px] text-green-500 border border-green-900 px-2 py-0.5 rounded-full bg-green-950/30"><Lock size={8}/> 256-bit Encrypted</span></div>
-                      <input type="text" placeholder="Cardholder Name" className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors"/>
-                      <input type="text" placeholder="0000 0000 0000 0000" maxLength={19} className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors tracking-widest"/>
+                      <div className="flex items-center gap-2 text-zinc-400 mb-2 border-b border-zinc-800 pb-2">
+                        <CreditCard size={16} /> <span className="text-xs uppercase">Debit / Credit Card</span>
+                        <span className="ml-auto flex items-center gap-1 text-[10px] text-green-500 border border-green-900 px-2 py-0.5 rounded-full bg-green-950/30">
+                          <Lock size={8}/> 256-bit Encrypted
+                        </span>
+                      </div>
+                      
+                      <input 
+                        type="text" 
+                        placeholder="Cardholder Name" 
+                        className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors"
+                      />
+                      
+                      <input 
+                        type="text" 
+                        placeholder="0000 0000 0000 0000" 
+                        maxLength={19}
+                        className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors tracking-widest"
+                      />
+                      
                       <div className="flex gap-4">
-                         <input type="text" placeholder="MM/YY" maxLength={5} className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors text-center"/>
-                         <input type="password" placeholder="CVC" maxLength={3} className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors text-center"/>
+                         <input 
+                          type="text" 
+                          placeholder="MM/YY" 
+                          maxLength={5}
+                          className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors text-center"
+                        />
+                        <input 
+                          type="password" 
+                          placeholder="CVC" 
+                          maxLength={3}
+                          className="w-full bg-transparent border-b border-zinc-800 py-2 text-white focus:border-[var(--accent-color)] outline-none text-sm transition-colors text-center"
+                        />
                       </div>
                     </div>
                   </div>
-                  <button type="submit" disabled={isProcessingDonation} className="w-full py-4 rounded-lg font-bold uppercase tracking-widest text-sm transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: 'var(--accent-color)', color: '#fff' }}>{isProcessingDonation ? 'Processing Offering...' : 'Leave Offering'}</button>
+
+                  <button 
+                    type="submit" 
+                    disabled={isProcessingDonation}
+                    className="w-full py-4 rounded-lg font-bold uppercase tracking-widest text-sm transition-all shadow-[0_0_20px_rgba(0,0,0,0.5)] flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--accent-color)', color: '#fff' }}
+                  >
+                    {isProcessingDonation ? 'Processing Offering...' : 'Leave Offering'}
+                  </button>
                </form>
-               <p className="text-center text-[10px] text-zinc-600 mt-4 uppercase tracking-wide">Secure Transaction • Nocturne Weave Treasury</p>
+               <p className="text-center text-[10px] text-zinc-600 mt-4 uppercase tracking-wide">
+                 Secure Transaction • Nocturne Weave Treasury
+               </p>
             </div>
           </div>
         );
@@ -1113,19 +1784,28 @@
               <div className="w-full md:w-1/2">
                  <div className="relative aspect-[3/4] overflow-hidden rounded-sm border border-zinc-800/50 group">
                    <div className="absolute inset-0 bg-gradient-to-t from-void-950 via-transparent to-transparent z-10"></div>
-                   <img src={founderProfile.imageUrl} alt={founderProfile.name} className="w-full h-full object-cover grayscale brightness-90 contrast-125 group-hover:scale-105 transition-transform duration-1000 ease-out"/>
+                   <img 
+                    src={founderProfile.imageUrl} 
+                    alt={founderProfile.name}
+                    className="w-full h-full object-cover grayscale brightness-90 contrast-125 group-hover:scale-105 transition-transform duration-1000 ease-out"
+                   />
                    <div className="absolute bottom-6 left-6 z-20">
                      <h2 className="text-3xl md:text-5xl font-serif font-bold text-white mb-2">{founderProfile.name}</h2>
                      <p className="text-zinc-400 font-serif italic" style={{ color: 'var(--accent-color)' }}>{founderProfile.tagline}</p>
                    </div>
                  </div>
               </div>
+
               <div className="w-full md:w-1/2">
-                 <h1 className="text-6xl md:text-8xl font-serif font-bold text-zinc-900 select-none absolute -top-20 -right-10 opacity-50 pointer-events-none md:block hidden">ORIGIN</h1>
+                 <h1 className="text-6xl md:text-8xl font-serif font-bold text-zinc-900 select-none absolute -top-20 -right-10 opacity-50 pointer-events-none md:block hidden">
+                   ORIGIN
+                 </h1>
                  <div className="relative z-10">
                     <span className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-500 block mb-8">The Founder</span>
                     <div className="prose prose-invert prose-lg">
-                      <p className="text-xl md:text-2xl font-serif leading-relaxed text-zinc-300 first-letter:text-6xl first-letter:font-bold first-letter:float-left first-letter:mr-3 first-letter:mt-[-10px]" style={{ color: 'var(--text-color)' }}>{founderProfile.bio}</p>
+                      <p className="text-xl md:text-2xl font-serif leading-relaxed text-zinc-300 first-letter:text-6xl first-letter:font-bold first-letter:float-left first-letter:mr-3 first-letter:mt-[-10px]" style={{ color: 'var(--text-color)' }}>
+                         {founderProfile.bio}
+                      </p>
                     </div>
                     <div className="mt-12 pt-8 border-t border-zinc-900/50 flex gap-6">
                        <div className="h-px bg-gradient-to-r from-[var(--accent-color)] to-transparent w-32"></div>
@@ -1138,78 +1818,317 @@
 
         return (
           <div className="min-h-screen bg-void-950 font-sans relative overflow-hidden">
-            <style>{`:root { --accent-color: ${theme.accentColor}; --text-color: ${theme.textColor}; } ::selection { background-color: var(--accent-color); color: #fff; }`}</style>
+            <style>{`
+              :root {
+                --accent-color: ${theme.accentColor};
+                --text-color: ${theme.textColor};
+              }
+              ::selection {
+                background-color: var(--accent-color);
+                color: #fff;
+              }
+            `}</style>
+            
             <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-void-950">
                {isVideoBg ? (
-                 <video src={bgImage} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-30 transition-opacity duration-1000 grayscale"/>
+                 <video 
+                   src={bgImage} 
+                   autoPlay 
+                   loop 
+                   muted 
+                   playsInline 
+                   className="absolute inset-0 w-full h-full object-cover opacity-30 transition-opacity duration-1000 grayscale"
+                 />
                ) : (
-                  <div className="absolute inset-0 bg-cover bg-center animate-ken-burns will-change-transform grayscale opacity-30" style={{ backgroundImage: `url(${bgImage})` }}></div>
+                  <div 
+                    className="absolute inset-0 bg-cover bg-center animate-ken-burns will-change-transform grayscale opacity-30"
+                    style={{ backgroundImage: `url(${bgImage})` }}
+                  ></div>
                )}
+               
                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(5,5,5,0.8)_60%,#050505_100%)]"></div>
                <div className="absolute inset-0 bg-gradient-to-t from-void-950 via-void-950/40 to-transparent"></div>
-               <div className="absolute inset-0 mix-blend-overlay opacity-20 animate-pulse-slow transition-colors duration-1000" style={{ backgroundColor: 'var(--accent-color)' }}></div>
+               <div 
+                  className="absolute inset-0 mix-blend-overlay opacity-20 animate-pulse-slow transition-colors duration-1000"
+                  style={{ backgroundColor: 'var(--accent-color)' }}
+               ></div>
             </div>
+
             <div className="noise-overlay"></div>
-            <div className="ambient-fog"><div className="fog-layer"></div><div className="fog-layer-2"></div></div>
-            {fallingItems.map(item => (<div key={item.id} className={item.type === 'cat' ? "falling-cat" : "falling-heart"} style={{ left: item.left, animationDelay: item.delay }}>{item.emoji}</div>))}
+
+            <div className="ambient-fog">
+              <div className="fog-layer"></div>
+              <div className="fog-layer-2"></div>
+            </div>
+
+            {fallingItems.map(item => (
+              <div 
+                key={item.id} 
+                className={item.type === 'cat' ? "falling-cat" : "falling-heart"} 
+                style={{ left: item.left, animationDelay: item.delay }}
+              >
+                {item.emoji}
+              </div>
+            ))}
+
             {showLogin && (
               <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in">
                 <div className="bg-zinc-900/80 p-8 rounded-2xl border border-white/5 w-full max-w-md shadow-2xl backdrop-blur-xl">
-                   <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-serif text-white">Curator Access</h3><button onClick={() => setShowLogin(false)}><X className="text-zinc-500 hover:text-white"/></button></div>
-                   <form onSubmit={handleLoginSubmit}><input type="password" placeholder="Enter Passcode..." className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white mb-4 focus:border-[var(--accent-color)] outline-none transition-colors placeholder-zinc-600" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus/><button type="submit" className="w-full py-3 bg-zinc-100 text-black font-bold rounded-lg hover:bg-white transition-colors">Unlock</button></form>
+                   <div className="flex justify-between items-center mb-6">
+                     <h3 className="text-xl font-serif text-white">Curator Access</h3>
+                     <button onClick={() => setShowLogin(false)}><X className="text-zinc-500 hover:text-white"/></button>
+                   </div>
+                   <form onSubmit={handleLoginSubmit}>
+                     <input 
+                      type="password" 
+                      placeholder="Enter Passcode..." 
+                      className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white mb-4 focus:border-[var(--accent-color)] outline-none transition-colors placeholder-zinc-600"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoFocus
+                     />
+                     <button type="submit" className="w-full py-3 bg-zinc-100 text-black font-bold rounded-lg hover:bg-white transition-colors">Unlock</button>
+                   </form>
                 </div>
               </div>
             )}
+
             {showSettings && (
               <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
                 <div className="bg-zinc-900/90 p-0 rounded-2xl border border-white/5 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl backdrop-blur-xl flex flex-col">
+                   
                    <div className="flex justify-between items-center px-8 py-6 border-b border-white/5 bg-black/20">
                      <div className="flex gap-6">
-                       <button onClick={() => setSettingsTab('dashboard')} className={`text-lg font-serif transition-colors pb-1 border-b-2 ${settingsTab === 'dashboard' ? 'text-white border-[var(--accent-color)]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}>Dashboard</button>
-                       <button onClick={() => setSettingsTab('founder')} className={`text-lg font-serif transition-colors pb-1 border-b-2 ${settingsTab === 'founder' ? 'text-white border-[var(--accent-color)]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}>Founder Profile</button>
+                       <button 
+                        onClick={() => setSettingsTab('dashboard')}
+                        className={`text-lg font-serif transition-colors pb-1 border-b-2 ${settingsTab === 'dashboard' ? 'text-white border-[var(--accent-color)]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
+                       >
+                         Dashboard
+                       </button>
+                       <button 
+                        onClick={() => setSettingsTab('founder')}
+                        className={`text-lg font-serif transition-colors pb-1 border-b-2 ${settingsTab === 'founder' ? 'text-white border-[var(--accent-color)]' : 'text-zinc-500 border-transparent hover:text-zinc-300'}`}
+                       >
+                         Founder Profile
+                       </button>
                      </div>
                      <button onClick={() => setShowSettings(false)}><X className="text-zinc-500 hover:text-white"/></button>
                    </div>
+                   
                    <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                      {settingsTab === 'dashboard' && (
                        <>
                          <div className="mb-10 p-6 rounded-xl border border-amber-900/30 bg-amber-950/10">
-                            <h4 className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-6 flex items-center gap-2"><Wallet size={14}/> Treasury</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-6 flex items-center gap-2">
+                             <Wallet size={14}/> Treasury
+                           </h4>
+                           
                            <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-                             <div className="text-center md:text-left"><p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Total Funds</p><p className="text-5xl font-serif text-white">${balance.toFixed(2)}</p></div>
+                             <div className="text-center md:text-left">
+                               <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Total Funds</p>
+                               <p className="text-5xl font-serif text-white">${balance.toFixed(2)}</p>
+                             </div>
+                             
                              <div className="flex flex-col items-center md:items-end">
-                                <button onClick={handleWithdraw} disabled={balance <= 0 || !linkedCard} className="px-6 py-3 bg-amber-700 text-white font-bold rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"><DollarSign size={16}/> Withdraw Funds</button>
-                                <button onClick={(e) => { e.preventDefault(); triggerCelebration(); }} className="mt-2 px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-400 rounded hover:bg-zinc-700 transition-colors flex items-center gap-2"><Heart size={12}/> Test Effect</button>
+                                <button 
+                                  onClick={handleWithdraw}
+                                  disabled={balance <= 0 || !linkedCard}
+                                  className="px-6 py-3 bg-amber-700 text-white font-bold rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  <DollarSign size={16}/> Withdraw Funds
+                                </button>
+                                
+                                <button
+                                  onClick={(e) => { e.preventDefault(); triggerCelebration(); }}
+                                  className="mt-2 px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-400 rounded hover:bg-zinc-700 transition-colors flex items-center gap-2"
+                                >
+                                  <Heart size={12}/> Test Effect
+                                </button>
+
                                 {linkedCard && <p className="text-[10px] text-zinc-500 mt-2">To card ending in •••• {linkedCard}</p>}
                              </div>
                            </div>
+                           
                            <div className="bg-black/40 border border-white/5 p-4 rounded-lg">
                               <h5 className="text-xs font-bold text-zinc-400 mb-3">Linked Withdrawal Method</h5>
-                              <form onSubmit={handleLinkCard} className="flex gap-2"><input type="text" placeholder="Card Number" className="flex-1 bg-zinc-900/50 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-700" value={newCardNumber} onChange={(e) => setNewCardNumber(e.target.value)} /><button type="submit" className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs uppercase font-bold rounded hover:bg-zinc-700">Link Card</button></form>
+                              <form onSubmit={handleLinkCard} className="flex gap-2">
+                                <input 
+                                  type="text" 
+                                  placeholder="Card Number" 
+                                  className="flex-1 bg-zinc-900/50 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-700"
+                                  value={newCardNumber}
+                                  onChange={(e) => setNewCardNumber(e.target.value)}
+                                />
+                                <button type="submit" className="px-4 py-2 bg-zinc-800 text-zinc-300 text-xs uppercase font-bold rounded hover:bg-zinc-700">Link Card</button>
+                              </form>
                            </div>
                          </div>
+
                          <div className="mb-10">
-                            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2"><Palette size={14}/> Theme Customization</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                              <Palette size={14}/> Theme Customization
+                            </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div className="flex flex-col gap-2"><label className="text-[10px] text-zinc-400 uppercase tracking-wide">Accent Color</label><div className="flex gap-2"><input type="color" value={theme.accentColor} onChange={(e) => setTheme({...theme, accentColor: e.target.value})} className="h-10 w-10 bg-transparent border-0 rounded cursor-pointer"/><input type="text" value={theme.accentColor} onChange={(e) => setTheme({...theme, accentColor: e.target.value})} className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 text-white focus:outline-none text-sm"/></div></div>
-                               <div className="flex flex-col gap-2"><label className="text-[10px] text-zinc-400 uppercase tracking-wide">Text Color</label><div className="flex gap-2"><input type="color" value={theme.textColor} onChange={(e) => setTheme({...theme, textColor: e.target.value})} className="h-10 w-10 bg-transparent border-0 rounded cursor-pointer"/><input type="text" value={theme.textColor} onChange={(e) => setTheme({...theme, textColor: e.target.value})} className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 text-white focus:outline-none text-sm"/></div></div>
-                              <button onClick={handleSaveTheme} className="col-span-1 sm:col-span-2 mt-2 px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors">Apply Theme</button>
+                              <div className="flex flex-col gap-2">
+                                <label className="text-[10px] text-zinc-400 uppercase tracking-wide">Accent Color</label>
+                                <div className="flex gap-2">
+                                   <input 
+                                    type="color" 
+                                    value={theme.accentColor} 
+                                    onChange={(e) => setTheme({...theme, accentColor: e.target.value})}
+                                    className="h-10 w-10 bg-transparent border-0 rounded cursor-pointer"
+                                   />
+                                   <input 
+                                    type="text" 
+                                    value={theme.accentColor}
+                                    onChange={(e) => setTheme({...theme, accentColor: e.target.value})}
+                                    className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 text-white focus:outline-none text-sm"
+                                   />
+                                </div>
+                              </div>
+                               <div className="flex flex-col gap-2">
+                                <label className="text-[10px] text-zinc-400 uppercase tracking-wide">Text Color</label>
+                                <div className="flex gap-2">
+                                   <input 
+                                    type="color" 
+                                    value={theme.textColor} 
+                                    onChange={(e) => setTheme({...theme, textColor: e.target.value})}
+                                    className="h-10 w-10 bg-transparent border-0 rounded cursor-pointer"
+                                   />
+                                   <input 
+                                    type="text" 
+                                    value={theme.textColor}
+                                    onChange={(e) => setTheme({...theme, textColor: e.target.value})}
+                                    className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 text-white focus:outline-none text-sm"
+                                   />
+                                </div>
+                              </div>
+                              <button 
+                                onClick={handleSaveTheme}
+                                className="col-span-1 sm:col-span-2 mt-2 px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
+                              >
+                                Apply Theme
+                              </button>
                             </div>
                          </div>
-                         <div className="mb-10"><h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2"><Type size={14}/> Blog Subtitle</h4><div className="flex flex-col gap-2"><textarea className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none min-h-[80px] text-sm" placeholder="Enter the text to display under 'Nocturne Weave'..." defaultValue={subtitle} onChange={(e) => setNewSubtitle(e.target.value)}/><button onClick={handleSaveSubtitle} className="self-end px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors">Save Text</button></div></div>
-                         <div className="mb-10"><h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2"><ImageIcon size={14}/> Live Background Visual</h4><div className="flex flex-col gap-2"><input type="text" className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none text-sm" placeholder="Enter image URL or Video URL (.mp4)" defaultValue={bgImage} onChange={(e) => setNewBgInput(e.target.value)}/><p className="text-[10px] text-zinc-500">Supports JPG, PNG, or .mp4/.webm video links.</p><button onClick={handleSaveBg} className="self-end px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors">Update Background</button></div></div>
-                         <div className="mb-6"><h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2"><Lock size={14}/> Security</h4><form onSubmit={handleChangePasscode} className="flex gap-4"><input type="text" placeholder="New passcode..." className="flex-1 bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none text-sm" value={newPasscode} onChange={(e) => setNewPasscode(e.target.value)}/><button type="submit" className="px-6 py-3 bg-zinc-800 text-zinc-200 font-bold rounded-lg hover:bg-zinc-700 transition-colors text-sm">Update</button></form></div>
+
+                         <div className="mb-10">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                             <Type size={14}/> Blog Subtitle
+                           </h4>
+                           <div className="flex flex-col gap-2">
+                             <textarea
+                               className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none min-h-[80px] text-sm"
+                               placeholder="Enter the text to display under 'Nocturne Weave'..."
+                               defaultValue={subtitle}
+                               onChange={(e) => setNewSubtitle(e.target.value)}
+                             />
+                             <button 
+                                onClick={handleSaveSubtitle}
+                                className="self-end px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
+                              >
+                                Save Text
+                              </button>
+                           </div>
+                         </div>
+
+                         <div className="mb-10">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                              <ImageIcon size={14}/> Live Background Visual
+                            </h4>
+                            <div className="flex flex-col gap-2">
+                              <input
+                                type="text"
+                                className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none text-sm"
+                                placeholder="Enter image URL or Video URL (.mp4)"
+                                defaultValue={bgImage}
+                                onChange={(e) => setNewBgInput(e.target.value)}
+                              />
+                              <p className="text-[10px] text-zinc-500">Supports JPG, PNG, or .mp4/.webm video links.</p>
+                              <button 
+                                 onClick={handleSaveBg}
+                                 className="self-end px-4 py-2 bg-zinc-800 text-xs uppercase font-bold text-zinc-300 rounded-lg hover:bg-zinc-700 transition-colors"
+                               >
+                                 Update Background
+                               </button>
+                            </div>
+                         </div>
+
+                         <div className="mb-6">
+                           <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                             <Lock size={14}/> Security
+                           </h4>
+                           <form onSubmit={handleChangePasscode} className="flex gap-4">
+                             <input 
+                              type="text" 
+                              placeholder="New passcode..." 
+                              className="flex-1 bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none text-sm"
+                              value={newPasscode}
+                              onChange={(e) => setNewPasscode(e.target.value)}
+                             />
+                             <button type="submit" className="px-6 py-3 bg-zinc-800 text-zinc-200 font-bold rounded-lg hover:bg-zinc-700 transition-colors text-sm">Update</button>
+                           </form>
+                         </div>
                        </>
                      )}
+                     
                      {settingsTab === 'founder' && (
                        <div className="animate-fade-in">
-                         <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2"><User size={14}/> Edit Public Profile</h4>
+                         <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
+                           <User size={14}/> Edit Public Profile
+                         </h4>
+                         
                          <div className="space-y-6">
-                            <div><label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Founder Name</label><input type="text" className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none" value={founderProfile.name} onChange={(e) => setFounderProfile({...founderProfile, name: e.target.value})}/></div>
-                            <div><label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Tagline (Subtitle)</label><input type="text" className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none" value={founderProfile.tagline} onChange={(e) => setFounderProfile({...founderProfile, tagline: e.target.value})}/></div>
-                            <div><label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Portrait Image URL</label><input type="text" className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none text-sm" value={founderProfile.imageUrl} onChange={(e) => setFounderProfile({...founderProfile, imageUrl: e.target.value})}/><div className="mt-2 h-40 w-32 bg-black overflow-hidden rounded border border-zinc-800">{founderProfile.imageUrl && <img src={founderProfile.imageUrl} alt="Preview" className="w-full h-full object-cover grayscale"/>}</div></div>
-                            <div><label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Bio / Story</label><textarea className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none h-64 text-sm font-serif leading-relaxed" value={founderProfile.bio} onChange={(e) => setFounderProfile({...founderProfile, bio: e.target.value})}/></div>
-                            <div className="flex justify-end pt-4"><button onClick={handleSaveFounder} className="px-6 py-3 bg-zinc-100 text-black font-bold rounded-lg hover:bg-white transition-colors flex items-center gap-2"><Check size={16}/> Save Profile</button></div>
+                            <div>
+                              <label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Founder Name</label>
+                              <input
+                                type="text"
+                                className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none"
+                                value={founderProfile.name}
+                                onChange={(e) => setFounderProfile({...founderProfile, name: e.target.value})}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Tagline (Subtitle)</label>
+                              <input
+                                type="text"
+                                className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none"
+                                value={founderProfile.tagline}
+                                onChange={(e) => setFounderProfile({...founderProfile, tagline: e.target.value})}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Portrait Image URL</label>
+                              <input
+                                type="text"
+                                className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none text-sm"
+                                value={founderProfile.imageUrl}
+                                onChange={(e) => setFounderProfile({...founderProfile, imageUrl: e.target.value})}
+                              />
+                              <div className="mt-2 h-40 w-32 bg-black overflow-hidden rounded border border-zinc-800">
+                                {founderProfile.imageUrl && <img src={founderProfile.imageUrl} alt="Preview" className="w-full h-full object-cover grayscale"/>}
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-[10px] text-zinc-400 uppercase tracking-wide mb-2">Bio / Story</label>
+                              <textarea
+                                className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-white focus:border-[var(--accent-color)] outline-none h-64 text-sm font-serif leading-relaxed"
+                                value={founderProfile.bio}
+                                onChange={(e) => setFounderProfile({...founderProfile, bio: e.target.value})}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-end pt-4">
+                              <button 
+                                 onClick={handleSaveFounder}
+                                 className="px-6 py-3 bg-zinc-100 text-black font-bold rounded-lg hover:bg-white transition-colors flex items-center gap-2"
+                               >
+                                 <Check size={16}/> Save Profile
+                               </button>
+                            </div>
                          </div>
                        </div>
                      )}
@@ -1217,64 +2136,166 @@
                 </div>
               </div>
             )}
+
             {mobileMenuOpen && (
               <div className="fixed inset-0 bg-void-950 z-50 flex flex-col items-center justify-center space-y-8 animate-fade-in">
-                <button onClick={() => setMobileMenuOpen(false)} className="absolute top-6 right-6 text-zinc-400"><X size={32} /></button>
+                <button onClick={() => setMobileMenuOpen(false)} className="absolute top-6 right-6 text-zinc-400">
+                  <X size={32} />
+                </button>
                 <button onClick={() => { setView('HOME'); setMobileMenuOpen(false); }} className={`text-3xl font-serif ${view === 'HOME' ? 'text-white' : 'text-zinc-500'}`}>Chronicles</button>
                 <button onClick={() => { setView('COMMUNITY'); setMobileMenuOpen(false); }} className={`text-3xl font-serif ${view === 'COMMUNITY' ? 'text-white' : 'text-zinc-500'}`}>Community</button>
                 <button onClick={() => { setView('FOUNDER'); setMobileMenuOpen(false); }} className={`text-3xl font-serif ${view === 'FOUNDER' ? 'text-white' : 'text-zinc-500'}`}>The Founder</button>
                 <button onClick={() => { setView('DONATE'); setMobileMenuOpen(false); }} className={`text-3xl font-serif ${view === 'DONATE' ? 'text-white' : 'text-zinc-500'}`}>Support</button>
+                
                 {isOwner && (
-                  <><button onClick={() => { setView('ADMIN'); setMobileMenuOpen(false); }} className={`text-3xl font-serif flex items-center gap-2 ${view === 'ADMIN' ? 'text-white' : 'text-zinc-500'}`}><Cat size={28} /> Admin</button><button onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }} className="text-lg font-serif text-zinc-500 hover:text-white flex items-center gap-2"><Settings size={20} /> Settings</button></>
+                  <>
+                     <button onClick={() => { setView('ADMIN'); setMobileMenuOpen(false); }} className={`text-3xl font-serif flex items-center gap-2 ${view === 'ADMIN' ? 'text-white' : 'text-zinc-500'}`}>
+                       <Cat size={28} /> Admin
+                     </button>
+                     <button onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }} className="text-lg font-serif text-zinc-500 hover:text-white flex items-center gap-2">
+                       <Settings size={20} /> Settings
+                     </button>
+                  </>
                 )}
-                <button onClick={toggleLogin} className="text-sm font-serif text-zinc-600 flex items-center gap-2 mt-8">{isOwner ? <><Unlock size={14}/> Logout</> : <><Lock size={14}/> Curator Login</>}</button>
+
+                <button onClick={toggleLogin} className="text-sm font-serif text-zinc-600 flex items-center gap-2 mt-8">
+                  {isOwner ? <><Unlock size={14}/> Logout</> : <><Lock size={14}/> Curator Login</>}
+                </button>
               </div>
             )}
+
             <div className="md:hidden flex items-center justify-between p-6 sticky top-0 bg-void-950/80 backdrop-blur-md z-40 border-b border-zinc-900">
               <span className="font-serif font-bold text-xl" onClick={() => setView('HOME')}>Nocturne Weave</span>
-              <button onClick={() => setMobileMenuOpen(true)} className="text-zinc-300"><Menu size={24} /></button>
+              <button onClick={() => setMobileMenuOpen(true)} className="text-zinc-300">
+                <Menu size={24} />
+              </button>
             </div>
+
             <nav className="hidden md:flex fixed left-0 top-0 bottom-0 w-20 flex-col items-center py-8 border-r border-white/5 bg-black/20 backdrop-blur-sm z-40">
-              <div className="mb-12 cursor-pointer group" onClick={() => setView('HOME')}><Ghost size={28} className="text-zinc-100 transition-colors" style={{ color: view === 'HOME' ? 'var(--accent-color)' : '' }} /></div>
+              <div className="mb-12 cursor-pointer group" onClick={() => setView('HOME')}>
+                <Ghost size={28} className="text-zinc-100 transition-colors" style={{ color: view === 'HOME' ? 'var(--accent-color)' : '' }} />
+              </div>
+              
               <div className="flex-1 flex flex-col gap-8 w-full items-center">
-                <button onClick={() => setView('HOME')} className={`p-3 rounded-xl transition-all relative group ${view === 'HOME' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="Official Chronicles"><BookOpen size={20} /><span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Blog</span></button>
-                <button onClick={() => setView('COMMUNITY')} className={`p-3 rounded-xl transition-all relative group ${view === 'COMMUNITY' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="Community Whispers"><Users size={20} /><span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Community</span></button>
-                <button onClick={() => setView('FOUNDER')} className={`p-3 rounded-xl transition-all relative group ${view === 'FOUNDER' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="The Founder"><User size={20} /><span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Founder</span></button>
-                <button onClick={() => setView('DONATE')} className={`p-3 rounded-xl transition-all relative group ${view === 'DONATE' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="Support"><Heart size={20} /><span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Support</span></button>
+                <button 
+                  onClick={() => setView('HOME')}
+                  className={`p-3 rounded-xl transition-all relative group ${view === 'HOME' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Official Chronicles"
+                >
+                  <BookOpen size={20} />
+                  <span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Blog</span>
+                </button>
+                
+                <button 
+                  onClick={() => setView('COMMUNITY')}
+                  className={`p-3 rounded-xl transition-all relative group ${view === 'COMMUNITY' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Community Whispers"
+                >
+                  <Users size={20} />
+                   <span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Community</span>
+                </button>
+
+                <button 
+                  onClick={() => setView('FOUNDER')}
+                  className={`p-3 rounded-xl transition-all relative group ${view === 'FOUNDER' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="The Founder"
+                >
+                  <User size={20} />
+                   <span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Founder</span>
+                </button>
+                
+                <button 
+                  onClick={() => setView('DONATE')}
+                  className={`p-3 rounded-xl transition-all relative group ${view === 'DONATE' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Support"
+                >
+                  <Heart size={20} />
+                   <span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Support</span>
+                </button>
+
                 {isOwner && (
-                  <><button onClick={handleCreateNew} className={`p-3 rounded-xl transition-all relative group ${view === 'CREATE' ? 'bg-white/10 text-white' : 'text-[var(--accent-color)] hover:text-white'}`} title="New Entry"><PenTool size={20} /><span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Write</span></button><button onClick={() => setView('ADMIN')} className={`p-3 rounded-xl transition-all relative group ${view === 'ADMIN' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="Admin Dashboard"><Cat size={20} /><span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Admin</span></button><button onClick={() => setShowSettings(true)} className="p-3 rounded-xl transition-all relative group text-zinc-600 hover:text-white" title="Settings"><Settings size={20} /><span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Settings</span></button></>
+                  <>
+                    <button 
+                      onClick={handleCreateNew}
+                      className={`p-3 rounded-xl transition-all relative group ${view === 'CREATE' ? 'bg-white/10 text-white' : 'text-[var(--accent-color)] hover:text-white'}`}
+                      title="New Entry"
+                    >
+                      <PenTool size={20} />
+                      <span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Write</span>
+                    </button>
+
+                    <button 
+                      onClick={() => setView('ADMIN')}
+                      className={`p-3 rounded-xl transition-all relative group ${view === 'ADMIN' ? 'bg-zinc-800/80 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                      title="Admin Dashboard"
+                    >
+                      <Cat size={20} />
+                      <span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Admin</span>
+                    </button>
+
+                    <button 
+                      onClick={() => setShowSettings(true)}
+                      className="p-3 rounded-xl transition-all relative group text-zinc-600 hover:text-white"
+                      title="Settings"
+                    >
+                      <Settings size={20} />
+                      <span className="absolute left-14 bg-zinc-900 border border-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Settings</span>
+                    </button>
+                  </>
                 )}
               </div>
-              <button onClick={toggleLogin} className={`mt-auto p-2 rounded-full transition-colors ${isOwner ? 'text-white' : 'text-zinc-800 hover:text-zinc-600'}`} style={{ color: isOwner ? 'var(--accent-color)' : '' }} title={isOwner ? "Logout" : "Curator Login"}>{isOwner ? <Unlock size={16}/> : <Lock size={16}/>}</button>
+
+              <button 
+                onClick={toggleLogin}
+                className={`mt-auto p-2 rounded-full transition-colors ${isOwner ? 'text-white' : 'text-zinc-800 hover:text-zinc-600'}`}
+                style={{ color: isOwner ? 'var(--accent-color)' : '' }}
+                title={isOwner ? "Logout" : "Curator Login"}
+              >
+                {isOwner ? <Unlock size={16}/> : <Lock size={16}/>}
+              </button>
             </nav>
+
             <main className="md:pl-20 min-h-screen relative z-10">
               {view === 'HOME' && renderHome()}
               {view === 'COMMUNITY' && renderCommunity()}
               {view === 'FOUNDER' && renderFounder()}
               {view === 'DONATE' && renderDonate()}
               {view === 'ADMIN' && renderAdmin()}
-              {view === 'READ' && activeStory && <StoryReader story={activeStory} onBack={() => setView(activeStory.authorType === 'OWNER' ? 'HOME' : 'COMMUNITY')} onEdit={handleEditStory} canEdit={isOwner}/>}
-              {(view === 'CREATE' || view === 'EDIT') && <Editor initialStory={view === 'EDIT' ? activeStory : undefined} onSave={handleSaveStory} onCancel={() => setView('HOME')} defaultAuthorType={isOwner ? 'OWNER' : 'GUEST'}/>}
+              {view === 'READ' && activeStory && (
+                <StoryReader 
+                  story={activeStory} 
+                  onBack={() => setView(activeStory.authorType === 'OWNER' ? 'HOME' : 'COMMUNITY')} 
+                  onEdit={handleEditStory}
+                  canEdit={isOwner}
+                />
+              )}
+              {(view === 'CREATE' || view === 'EDIT') && (
+                <Editor 
+                  initialStory={view === 'EDIT' ? activeStory : undefined}
+                  onSave={handleSaveStory}
+                  onCancel={() => setView('HOME')}
+                  defaultAuthorType={isOwner ? 'OWNER' : 'GUEST'}
+                />
+              )}
             </main>
           </div>
         );
       };
 
       const rootElement = document.getElementById('root');
-      if (!rootElement) throw new Error("Could not find root element to mount to");
+      if (!rootElement) {
+        throw new Error("Could not find root element to mount to");
+      }
+
       const root = ReactDOM.createRoot(rootElement);
-      root.render(<React.StrictMode><App /></React.StrictMode>);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
     </script>
   </head>
   <body>
     <div id="root"></div>
-    <!-- Hidden Netlify Form Definition for Community Submissions -->
-    <form name="community-stories" netlify netlify-honeypot="bot-field" hidden>
-      <input type="text" name="title" />
-      <input type="text" name="author" />
-      <textarea name="content"></textarea>
-      <input type="text" name="tags" />
-      <input type="text" name="coverImage" />
-    </form>
   </body>
 </html>
