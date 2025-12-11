@@ -236,7 +236,8 @@
 
       // --- CONFIGURATION ---
       // ENTER YOUR API KEY HERE
-      const API_KEY = process.env.API_KEY || ''; 
+      // Safe check for process.env to prevent runtime crashes in browser (Netlify/Static)
+      const API_KEY = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : '';
 
       // --- TYPES ---
       
