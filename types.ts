@@ -15,7 +15,7 @@ export interface Story {
   authorName?: string;
 }
 
-export type ViewState = 'HOME' | 'COMMUNITY' | 'READ' | 'EDIT' | 'CREATE' | 'DONATE' | 'FOUNDER';
+export type ViewState = 'HOME' | 'COMMUNITY' | 'READ' | 'EDIT' | 'CREATE' | 'DONATE' | 'FOUNDER' | 'ADMIN';
 
 export enum GeminiAction {
   CONTINUE = 'CONTINUE',
