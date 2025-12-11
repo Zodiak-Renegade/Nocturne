@@ -240,11 +240,6 @@
 
       // --- TYPES ---
       
-      /*
-      type AuthorType = 'OWNER' | 'GUEST';
-      interface Story { id: string; title: string; ... }
-      */
-      
       const GeminiAction = {
         CONTINUE: 'CONTINUE',
         IMPROVE: 'IMPROVE',
@@ -456,7 +451,6 @@
       };
 
       const withdrawBalance = () => {
-        const amount = getBalance();
         localStorage.setItem(BALANCE_KEY, '0.00');
       };
 
@@ -770,7 +764,7 @@
           }
 
           const isGuest = defaultAuthorType === 'GUEST';
-          // Guests are now published immediately (no approval queue), unless explicitly saved as draft by owner
+          // UPDATE: Guests are now published immediately (no approval queue), unless explicitly saved as draft by owner
           const isPublished = isGuest ? true : shouldPublish;
           
           const newStory = {
@@ -788,6 +782,10 @@
           };
             
           onSave(newStory);
+          
+          if (isGuest && !initialStory) {
+             alert("Your tale has been whispered to the void.");
+          }
         };
 
         const handleAI = async (action) => {
@@ -987,7 +985,7 @@
         const [settingsTab, setSettingsTab] = useState('dashboard');
 
         // Admin Dashboard State
-        const [adminTab, setAdminTab] = useState('stories'); // Renamed 'submissions' -> 'stories'
+        const [adminTab, setAdminTab] = useState('stories'); // Default 'stories'
         const [expandedStoryId, setExpandedStoryId] = useState(null);
         const [activityLogs, setActivityLogs] = useState([]);
         
