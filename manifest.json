@@ -1,7 +1,7 @@
 {
   "name": "Nocturne Weave",
   "short_name": "Nocturne",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#050505",
   "theme_color": "#050505",
@@ -9,12 +9,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "icon.svg",
       "type": "image/svg+xml",
       "sizes": "512x512"
     },
     {
-      "src": "/icon.svg",
+      "src": "icon.svg",
       "type": "image/svg+xml",
       "sizes": "192x192"
     }

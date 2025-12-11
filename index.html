@@ -11,10 +11,10 @@
     
     <title>Nocturne Weave</title>
     
-    <!-- PWA Links -->
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon.svg" />
+    <!-- PWA Links (Relative paths for GitHub Pages) -->
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="icon.svg" />
+    <link rel="apple-touch-icon" href="icon.svg" />
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -764,7 +764,7 @@
           }
 
           const isGuest = defaultAuthorType === 'GUEST';
-          // UPDATE: Guests are now published immediately (no approval queue), unless explicitly saved as draft by owner
+          // UPDATE: Guests are now published immediately
           const isPublished = isGuest ? true : shouldPublish;
           
           const newStory = {
@@ -784,7 +784,7 @@
           onSave(newStory);
           
           if (isGuest && !initialStory) {
-             alert("Your tale has been whispered to the void.");
+             alert("Your tale has been woven into the fabric of the void.");
           }
         };
 
@@ -985,7 +985,7 @@
         const [settingsTab, setSettingsTab] = useState('dashboard');
 
         // Admin Dashboard State
-        const [adminTab, setAdminTab] = useState('stories'); // Default 'stories'
+        const [adminTab, setAdminTab] = useState('stories'); 
         const [expandedStoryId, setExpandedStoryId] = useState(null);
         const [activityLogs, setActivityLogs] = useState([]);
         
