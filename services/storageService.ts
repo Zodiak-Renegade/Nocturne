@@ -9,6 +9,7 @@ const THEME_KEY = 'nocturne_theme';
 const BALANCE_KEY = 'nocturne_balance';
 const LINKED_CARD_KEY = 'nocturne_linked_card';
 const FOUNDER_KEY = 'nocturne_founder';
+const LOGS_KEY = 'nocturne_logs';
 
 export interface ThemeSettings {
   accentColor: string;
@@ -20,6 +21,13 @@ export interface FounderProfile {
   tagline: string;
   bio: string;
   imageUrl: string;
+}
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  action: string;
+  details: string;
 }
 
 export const getStories = (): Story[] => {
@@ -36,6 +44,13 @@ export const saveStory = (story: Story): void => {
     stories.unshift(story);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+  // Note: Internal usage of logActivity here is fine, but we also export it now.
+  if (index === -1) {
+     // We can't easily call the exported logActivity here due to circular deps if we imported it, 
+     // but since we are defining it in this file, we can just use the function implementation directly if we moved it up,
+     // or just rely on the App.tsx to log major user actions.
+     // For simplicity in this file structure, we'll leave internal logging minimal or move logActivity definition up.
+  }
 };
 
 export const deleteStory = (id: string): void => {
@@ -48,18 +63,13 @@ export const getStoryById = (id: string): Story | undefined => {
 };
 
 export const getPasscode = (): string => {
-  // Simple hash check or plain return for this demo level (actual encryption done in App/login logic usually, 
-  // but here we just store the hash string)
-  return localStorage.getItem(PASSCODE_KEY) || 'void'; // Default is 'void'
+  return localStorage.getItem(PASSCODE_KEY) || 'void'; 
 };
 
-// In a real app we'd use a library, but here is a simple async SHA-256 for the passcode
 export const verifyPasscode = async (input: string): Promise<boolean> => {
   const stored = getPasscode();
-  // If stored is default 'void', just check plain text
   if (stored === 'void') return input === 'void';
   
-  // Otherwise hash input and compare
   const msgBuffer = new TextEncoder().encode(input);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -85,7 +95,6 @@ export const saveHeroSubtitle = (text: string): void => {
 };
 
 export const getBackgroundImage = (): string => {
-  // High-end atmospheric forest, dark and moody
   return localStorage.getItem(BG_IMAGE_KEY) || 'https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=2670&auto=format&fit=crop';
 };
 
@@ -102,7 +111,6 @@ export const saveThemeSettings = (settings: ThemeSettings): void => {
   localStorage.setItem(THEME_KEY, JSON.stringify(settings));
 };
 
-// Founder Profile Storage
 export const getFounderProfile = (): FounderProfile => {
   const data = localStorage.getItem(FOUNDER_KEY);
   return data ? JSON.parse(data) : {
@@ -117,8 +125,6 @@ export const saveFounderProfile = (profile: FounderProfile): void => {
   localStorage.setItem(FOUNDER_KEY, JSON.stringify(profile));
 };
 
-
-// Donation / Financial Storage
 export const getBalance = (): number => {
   return parseFloat(localStorage.getItem(BALANCE_KEY) || '0.00');
 };
@@ -136,19 +142,39 @@ export const getLinkedCard = (): string => {
   const encoded = localStorage.getItem(LINKED_CARD_KEY);
   if (!encoded) return '';
   try {
-    return atob(encoded); // Simple base64 decode for display purposes
+    return atob(encoded); 
   } catch (e) {
     return '';
   }
 };
 
 export const saveLinkedCard = (last4: string): void => {
-  // Simple base64 encoding to prevent casual shoulder surfing of local storage
   localStorage.setItem(LINKED_CARD_KEY, btoa(last4));
 };
 
+// Activity Logs
+export const getLogs = (): LogEntry[] => {
+  const data = localStorage.getItem(LOGS_KEY);
+  return data ? JSON.parse(data) : [];
+};
 
-// Seed some initial data if empty
+export const logActivity = (action: string, details: string): void => {
+  const logs = getLogs();
+  const entry: LogEntry = {
+    id: crypto.randomUUID(),
+    timestamp: Date.now(),
+    action,
+    details
+  };
+  logs.unshift(entry);
+  if (logs.length > 100) logs.pop(); // Keep last 100
+  localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+};
+
+export const clearLogs = (): void => {
+  localStorage.removeItem(LOGS_KEY);
+};
+
 export const seedInitialData = () => {
   if (getStories().length === 0) {
     const initialStories: Story[] = [

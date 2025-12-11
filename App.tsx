@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, Story } from './types';
 import { 
@@ -8,7 +9,8 @@ import {
   getThemeSettings, saveThemeSettings, ThemeSettings, 
   getBalance, addToBalance, withdrawBalance, 
   getLinkedCard, saveLinkedCard,
-  getFounderProfile, saveFounderProfile, FounderProfile
+  getFounderProfile, saveFounderProfile, FounderProfile,
+  logActivity, getLogs, clearLogs
 } from './services/storageService';
 import { StoryCard } from './components/StoryCard';
 import { Editor } from './components/Editor';
@@ -54,6 +56,7 @@ const App: React.FC = () => {
   // Admin Dashboard State
   const [adminTab, setAdminTab] = useState<'submissions' | 'monies' | 'activity'>('submissions');
   const [expandedStoryId, setExpandedStoryId] = useState<string | null>(null);
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   // Treasury State
   const [balance, setBalance] = useState(0);
@@ -72,6 +75,7 @@ const App: React.FC = () => {
   useEffect(() => {
     seedInitialData();
     refreshStories();
+    refreshLogs();
     setSubtitle(getHeroSubtitle());
     setBgImage(getBackgroundImage());
     setTheme(getThemeSettings());
@@ -88,6 +92,10 @@ const App: React.FC = () => {
 
   const refreshStories = () => {
     setStories(getStories());
+  };
+
+  const refreshLogs = () => {
+    setActivityLogs(getLogs());
   };
 
   const refreshTreasury = () => {
@@ -140,6 +148,16 @@ const App: React.FC = () => {
   const handleSaveStory = (story: Story) => {
     saveStory(story);
     refreshStories();
+    
+    const isNew = !stories.find(s => s.id === story.id);
+    if (isNew && story.authorType === 'GUEST') {
+      logActivity('SUBMISSION', `New community story submitted: ${story.title}`);
+      refreshLogs();
+    } else if (story.authorType === 'OWNER') {
+       logActivity(isNew ? 'CREATE_STORY' : 'UPDATE_STORY', `Saved story: ${story.title}`);
+       refreshLogs();
+    }
+
     if (story.isPublished) {
       setActiveStory(story);
       setView('READ');
@@ -157,6 +175,8 @@ const App: React.FC = () => {
     if (confirm("Are you sure you want to cast this story into the void forever?")) {
       deleteStory(id);
       refreshStories();
+      logActivity('DELETE', `Deleted story ID: ${id}`);
+      refreshLogs();
       setView('HOME');
     }
   };
@@ -165,12 +185,23 @@ const App: React.FC = () => {
     const updatedStory = { ...story, isPublished: true };
     saveStory(updatedStory);
     refreshStories();
+    logActivity('APPROVE', `Approved story: ${story.title}`);
+    refreshLogs();
   };
 
   const handleRejectStory = (id: string) => {
     if (confirm("Reject and delete this submission?")) {
       deleteStory(id);
       refreshStories();
+      logActivity('REJECT', `Rejected story ID: ${id}`);
+      refreshLogs();
+    }
+  };
+  
+  const handleClearLogs = () => {
+    if (confirm("Are you sure you want to wipe the activity history? This cannot be undone.")) {
+      clearLogs();
+      refreshLogs();
     }
   };
 
@@ -203,6 +234,8 @@ const App: React.FC = () => {
       setShowLogin(false);
       setPassword('');
       triggerCats(); // MEOW!
+      logActivity('LOGIN', 'Curator logged in');
+      refreshLogs();
     } else {
       alert("Access denied.");
     }
@@ -213,6 +246,8 @@ const App: React.FC = () => {
     if (newPasscode.trim().length > 0) {
       await savePasscode(newPasscode);
       setNewPasscode('');
+      logActivity('SETTINGS', 'Passcode changed');
+      refreshLogs();
       alert("Passcode updated successfully.");
     }
   }
@@ -221,6 +256,8 @@ const App: React.FC = () => {
     if (newSubtitle.trim()) {
       saveHeroSubtitle(newSubtitle);
       setSubtitle(newSubtitle);
+      logActivity('SETTINGS', 'Subtitle updated');
+      refreshLogs();
       alert("Chronicle subtitle updated.");
     }
   }
@@ -229,17 +266,23 @@ const App: React.FC = () => {
     if (newBgInput.trim()) {
         saveBackgroundImage(newBgInput);
         setBgImage(newBgInput);
+        logActivity('SETTINGS', 'Background updated');
+        refreshLogs();
         alert("Live background updated.");
     }
   }
 
   const handleSaveTheme = () => {
     saveThemeSettings(theme);
+    logActivity('SETTINGS', 'Theme updated');
+    refreshLogs();
     alert("Theme colors updated.");
   }
 
   const handleSaveFounder = () => {
     saveFounderProfile(founderProfile);
+    logActivity('SETTINGS', 'Founder profile updated');
+    refreshLogs();
     alert("Founder profile updated.");
   }
 
@@ -252,6 +295,8 @@ const App: React.FC = () => {
       saveLinkedCard(last4);
       setLinkedCard(last4);
       setNewCardNumber('');
+      logActivity('TREASURY', `Linked card ending in ${last4}`);
+      refreshLogs();
       alert(`Card ending in ${last4} linked successfully.`);
     } else {
       alert("Please enter a valid card number.");
@@ -265,6 +310,8 @@ const App: React.FC = () => {
     if (confirm(`Withdraw $${balance.toFixed(2)} to card ending in ${linkedCard}?`)) {
       withdrawBalance();
       refreshTreasury();
+      logActivity('TREASURY', `Withdrew $${balance.toFixed(2)}`);
+      refreshLogs();
       alert("Funds withdrawn successfully. The transfer has begun.");
     }
   }
@@ -285,6 +332,8 @@ const App: React.FC = () => {
       setIsProcessingDonation(false);
       setDonationAmount('');
       triggerCelebration();
+      logActivity('DONATION', `Received offering of $${donationAmount}`);
+      refreshLogs();
       alert("Your offering has been accepted. The Curator thanks you.");
       setView('HOME');
     }, 1500);
@@ -308,14 +357,6 @@ const App: React.FC = () => {
   const communityStories = stories.filter(s => s.authorType === 'GUEST' && s.isPublished);
   const pendingStories = stories.filter(s => s.authorType === 'GUEST' && !s.isPublished);
   
-  // Get Logs
-  // NOTE: getLogs is not exported in the provided services/storageService.ts snippet in context, 
-  // but assuming it exists based on previous instructions. 
-  // If not, we'd need to add it, but 'do no other changes' implies using existing structure.
-  // We'll mock it if missing to prevent build error or rely on it being there.
-  // Based on context, it was added. We will use a safe access.
-  const logs = (window as any).getLogs ? (window as any).getLogs() : [];
-
   // Check if background is video
   const isVideoBg = bgImage.match(/\.(mp4|webm)$/i);
 
@@ -589,7 +630,15 @@ const App: React.FC = () => {
       )}
 
       {adminTab === 'activity' && (
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden animate-fade-in">
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden animate-fade-in flex flex-col">
+           <div className="p-4 border-b border-zinc-800 flex justify-end bg-black/20">
+              <button 
+                onClick={handleClearLogs}
+                className="text-xs text-red-400 hover:text-red-300 uppercase font-bold flex items-center gap-2 px-3 py-1.5 border border-red-900/50 rounded hover:bg-red-900/20 transition-colors"
+              >
+                <Trash2 size={12}/> Clear History
+              </button>
+           </div>
            <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-zinc-400">
                  <thead className="bg-black/40 text-xs uppercase tracking-wider text-zinc-500 font-bold border-b border-zinc-800">
@@ -600,15 +649,21 @@ const App: React.FC = () => {
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-zinc-800/50">
-                    {logs.map((log: any) => (
-                       <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap font-mono text-xs">{new Date(log.timestamp).toLocaleString()}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                             <span className="px-2 py-1 bg-zinc-800 rounded text-xs text-white border border-zinc-700">{log.action}</span>
-                          </td>
-                          <td className="px-6 py-4 text-zinc-300">{log.details}</td>
+                    {activityLogs.length === 0 ? (
+                       <tr>
+                         <td colSpan={3} className="px-6 py-8 text-center text-zinc-600 italic">No activity recorded...</td>
                        </tr>
-                    ))}
+                    ) : (
+                      activityLogs.map((log: any) => (
+                         <tr key={log.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap font-mono text-xs">{new Date(log.timestamp).toLocaleString()}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                               <span className="px-2 py-1 bg-zinc-800 rounded text-xs text-white border border-zinc-700">{log.action}</span>
+                            </td>
+                            <td className="px-6 py-4 text-zinc-300">{log.details}</td>
+                         </tr>
+                      ))
+                    )}
                  </tbody>
               </table>
            </div>
