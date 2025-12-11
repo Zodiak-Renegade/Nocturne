@@ -764,7 +764,7 @@
           }
 
           const isGuest = defaultAuthorType === 'GUEST';
-          // UPDATE: Guests are now published immediately
+          // UPDATE: Guests are now published immediately (true), Owner uses button choice
           const isPublished = isGuest ? true : shouldPublish;
           
           const newStory = {
@@ -777,8 +777,8 @@
             tags: tags.split(',').map(t => t.trim()).filter(Boolean),
             isPublished: isPublished,
             coverImage: coverImage.trim() ? coverImage.trim() : (initialStory?.coverImage || `https://picsum.photos/seed/${Date.now()}/800/600?grayscale`),
-            authorType: defaultAuthorType,
-            authorName: authorName || 'The Curator'
+            authorType: initialStory?.authorType || defaultAuthorType,
+            authorName: authorName || (defaultAuthorType === 'OWNER' ? 'The Curator' : 'Anonymous')
           };
             
           onSave(newStory);
@@ -939,7 +939,7 @@
                     <span className="text-xs uppercase tracking-widest whitespace-nowrap">Author:</span>
                     <input
                       type="text"
-                      placeholder="Your Name"
+                      placeholder="Your Name (Optional)"
                       value={authorName}
                       onChange={(e) => setAuthorName(e.target.value)}
                       className="bg-transparent text-sm text-zinc-300 focus:outline-none w-full"
@@ -985,7 +985,7 @@
         const [settingsTab, setSettingsTab] = useState('dashboard');
 
         // Admin Dashboard State
-        const [adminTab, setAdminTab] = useState('stories'); 
+        const [adminTab, setAdminTab] = useState('stories'); // Default to Stories management
         const [expandedStoryId, setExpandedStoryId] = useState(null);
         const [activityLogs, setActivityLogs] = useState([]);
         
